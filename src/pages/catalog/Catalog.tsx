@@ -147,20 +147,20 @@ export default function Catalog() {
                                         <p className="text-xs text-gray-500 line-clamp-2 mb-3">
                                             {product.description}
                                         </p>
-                                        <div className="mt-auto flex items-center justify-between">
-                                            <span className="text-lg font-bold text-brand-600">
+                                        <div className="mt-auto">
+                                            <span className="text-lg font-bold text-brand-600 block mb-2">
                                                 {formatCurrency(product.price)}
                                             </span>
 
                                             {inCart ? (
-                                                <div className="flex items-center gap-2 bg-brand-50 rounded-lg p-1">
+                                                <div className="flex items-center justify-between bg-brand-50 rounded-lg p-1">
                                                     <button
                                                         onClick={() => updateQuantity(product.id, inCart.quantity - 1)}
-                                                        className="h-8 w-8 flex items-center justify-center rounded-md bg-white text-brand-600 shadow-sm hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer"
+                                                        className="h-7 w-7 flex-shrink-0 flex items-center justify-center rounded-md bg-white text-brand-600 shadow-sm hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer"
                                                     >
-                                                        <Minus size={16} />
+                                                        <Minus size={14} />
                                                     </button>
-                                                    <span className="text-sm font-bold text-brand-900 w-4 text-center">
+                                                    <span className="text-sm font-bold text-brand-900 min-w-[20px] text-center">
                                                         {inCart.quantity}
                                                     </span>
                                                     <button
@@ -168,9 +168,9 @@ export default function Catalog() {
                                                             if (remainingStock > 0) updateQuantity(product.id, inCart.quantity + 1);
                                                         }}
                                                         disabled={remainingStock <= 0}
-                                                        className={`h-8 w-8 flex items-center justify-center rounded-md text-white shadow-sm transition-colors cursor-pointer ${remainingStock > 0 ? 'bg-brand-600 hover:bg-brand-700' : 'bg-gray-300 cursor-not-allowed'}`}
+                                                        className={`h-7 w-7 flex-shrink-0 flex items-center justify-center rounded-md text-white shadow-sm transition-colors cursor-pointer ${remainingStock > 0 ? 'bg-brand-600 hover:bg-brand-700' : 'bg-gray-300 cursor-not-allowed'}`}
                                                     >
-                                                        <Plus size={16} />
+                                                        <Plus size={14} />
                                                     </button>
                                                 </div>
                                             ) : (
@@ -178,20 +178,20 @@ export default function Catalog() {
                                                     onClick={() => handleAdd(product)}
                                                     disabled={remainingStock <= 0}
                                                     className={cn(
-                                                        'flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 cursor-pointer',
+                                                        'flex h-9 w-full items-center justify-center rounded-xl transition-all duration-200 cursor-pointer text-sm font-medium gap-1',
                                                         remainingStock <= 0
                                                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                             : justAdded
-                                                                ? 'bg-brand-600 text-white scale-110'
+                                                                ? 'bg-brand-600 text-white scale-[1.02]'
                                                                 : 'bg-brand-50 text-brand-600 hover:bg-brand-600 hover:text-white active:scale-95'
                                                     )}
                                                 >
                                                     {remainingStock <= 0 ? (
-                                                        <span className="text-[10px] font-bold">X</span>
+                                                        <span className="text-xs font-bold">Esgotado</span>
                                                     ) : justAdded ? (
-                                                        <Check size={18} />
+                                                        <><Check size={16} /> <span>Adicionado</span></>
                                                     ) : (
-                                                        <Plus size={18} />
+                                                        <><Plus size={16} /> <span>Adicionar</span></>
                                                     )}
                                                 </button>
                                             )}
