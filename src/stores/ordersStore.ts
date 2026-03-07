@@ -1,0 +1,222 @@
+
+import { create } from 'zustand';
+import { supabase } from '@/lib/supabase';
+
+import type { Order, OrderItem } from '@/types';
+import { useProductsStore } from './productsStore';
+import { sendOrderConfirmation } from '@/lib/evolutionApi';
+
+// Helper to deduct stock
+const decrementStock = async (items: { product_id: string; quantity: number }[]) => {
+    try {
+        await Promise.all(
+            items.map(async (item) => {
+                const { data: product } = await supabase
+                    .from('products')
+                    .select('stock_qty')
+                    .eq('id', item.product_id)
+                    .single();
+
+                if (product) {
+                    const newStock = Math.max(0, product.stock_qty - item.quantity);
+                    await supabase
+                        .from('products')
+                        .update({ stock_qty: newStock })
+                        .eq('id', item.product_id);
+                }
+            })
+        );
+        // Refresh products to reflect new stock in UI
+        useProductsStore.getState().fetchProducts();
+    } catch (err) {
+        console.error('Error decrementing stock:', err);
+    }
+};
+
+export type OrderWithItems = Order & { items: (OrderItem & { product?: any })[] };
+
+interface OrdersState {
+    orders: OrderWithItems[];
+    isLoading: boolean;
+
+    /** Fetch all orders (with items) from Supabase */
+    fetchOrders: () => Promise<void>;
+
+    /** Insert a new order + items into Supabase and prepend to local state */
+    addOrder: (
+        orderData: Omit<Order, 'id' | 'created_at'>,
+        items: { product_id: string; quantity: number; unit_price: number; productName?: string; productCategory?: string }[]
+    ) => Promise<string | null>;
+
+    /** Update order status in Supabase and local state */
+    updateStatus: (orderId: string, status: Order['status']) => Promise<void>;
+}
+
+export const useOrdersStore = create<OrdersState>((set, get) => ({
+    orders: [],
+    isLoading: false,
+
+    fetchOrders: async () => {
+        set({ isLoading: true });
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*, order_items(*, products(id, name, price, category)), customers(*)')
+                .order('created_at', { ascending: false })
+                .limit(100);
+
+            if (error) {
+                console.error('Error fetching orders:', error);
+                set({ isLoading: false });
+                return;
+            }
+
+            // Map Supabase response shape to our type
+            const orders: OrderWithItems[] = (data || []).map((row: any) => ({
+                id: row.id,
+                customer_id: row.customer_id,
+                type: row.type,
+                status: row.status,
+                delivery_method: row.delivery_method,
+                payment_method: row.payment_method,
+                total_amount: Number(row.total_amount),
+                discount_amount: Number(row.discount_amount),
+                surcharge_amount: Number(row.surcharge_amount),
+                delivery_address: row.delivery_address || null,
+                created_at: row.created_at,
+                customer: row.customers || null, // Map joined customer data
+                items: (row.order_items || []).map((item: any) => ({
+                    id: item.id,
+                    order_id: item.order_id,
+                    product_id: item.product_id,
+                    quantity: item.quantity,
+                    unit_price: Number(item.unit_price),
+                    product: item.products || null,
+                })),
+            }));
+
+            set({ orders, isLoading: false });
+        } catch (err) {
+            console.error('Error fetching orders:', err);
+            set({ isLoading: false });
+        }
+    },
+
+    addOrder: async (orderData, items) => {
+        try {
+            // 1. Insert order
+            const { data: orderRow, error: orderErr } = await supabase
+                .from('orders')
+                .insert({
+                    customer_id: orderData.customer_id || null,
+                    type: orderData.type,
+                    status: orderData.status,
+                    delivery_method: orderData.delivery_method || null,
+                    payment_method: orderData.payment_method,
+                    total_amount: orderData.total_amount,
+                    discount_amount: orderData.discount_amount,
+                    surcharge_amount: orderData.surcharge_amount,
+                    delivery_address: orderData.delivery_address || null,
+                })
+                .select()
+                .single();
+
+            if (orderErr || !orderRow) {
+                console.error('Error inserting order:', orderErr);
+                return null;
+            }
+
+            const orderId = orderRow.id;
+
+            // 2. Insert order items
+            const orderItems = items.map((item) => ({
+                order_id: orderId,
+                product_id: item.product_id,
+                quantity: item.quantity,
+                unit_price: item.unit_price,
+            }));
+
+            const { data: itemRows, error: itemErr } = await supabase
+                .from('order_items')
+                .insert(orderItems)
+                .select();
+
+            if (itemErr) {
+                console.error('Error inserting order items:', itemErr);
+            }
+
+            // 3. Update local state immediately
+            const newOrder: OrderWithItems = {
+                id: orderId,
+                customer_id: orderData.customer_id || null,
+                type: orderData.type,
+                status: orderData.status,
+                delivery_method: orderData.delivery_method || null,
+                payment_method: orderData.payment_method,
+                total_amount: orderData.total_amount,
+                discount_amount: orderData.discount_amount,
+                delivery_address: orderData.delivery_address || null,
+                surcharge_amount: orderData.surcharge_amount,
+                created_at: orderRow.created_at,
+                items: (itemRows || []).map((ir: any, idx: number) => ({
+                    id: ir.id,
+                    order_id: orderId,
+                    product_id: ir.product_id,
+                    quantity: ir.quantity,
+                    unit_price: Number(ir.unit_price),
+                    product: {
+                        id: items[idx].product_id,
+                        name: items[idx].productName || '',
+                        price: items[idx].unit_price,
+                        category: items[idx].productCategory || '',
+                    } as any,
+                })) as any,
+            };
+
+            set((state) => ({ orders: [newOrder, ...state.orders] }));
+
+            // 4. If status is 'completed' (POS), deduct stock immediately
+            if (orderData.status === 'completed') {
+                await decrementStock(items);
+            }
+
+
+
+            return orderId;
+        } catch (err) {
+            console.error('Error creating order:', err);
+            return null;
+        }
+    },
+
+    updateStatus: async (orderId, status) => {
+        // Optimistic update
+        set((state) => ({
+            orders: state.orders.map((o) =>
+                o.id === orderId ? { ...o, status } : o
+            ),
+        }));
+
+        const { error } = await supabase
+            .from('orders')
+            .update({ status })
+            .eq('id', orderId);
+
+
+        if (status === 'accepted') {
+            const order = get().orders.find((o) => o.id === orderId);
+            if (order) {
+                await decrementStock(order.items);
+                // Send WhatsApp confirmation to customer
+                sendOrderConfirmation(order).catch((err) =>
+                    console.error('[WhatsApp] Failed to send confirmation:', err)
+                );
+            }
+        }
+        if (error) {
+            console.error('Error updating order status:', error);
+            // Revert on error — refetch
+            get().fetchOrders();
+        }
+    },
+}));
