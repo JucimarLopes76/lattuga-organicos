@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { AdminLayout } from '@/layouts/AdminLayout';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 
 // Pages
 import Login from '@/pages/Login';
@@ -28,6 +29,7 @@ export default function App() {
 
     return (
         <BrowserRouter>
+            <PWAInstallPrompt />
             <Routes>
                 {/* Public routes */}
                 <Route element={<PublicLayout />}>
