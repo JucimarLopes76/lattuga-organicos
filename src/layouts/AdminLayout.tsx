@@ -82,11 +82,14 @@ export function AdminLayout() {
 
             const registration = await navigator.serviceWorker.ready;
 
-            // Check if already subscribed
+            // MUDANÇA: Vamos tentar buscar a subscription
             let subscription = await registration.pushManager.getSubscription();
             
+            // Se existir uma velha com a chave antiga, ou se VAPID foi re-gerado,
+            // a FCM (Google) bloqueia o push. Por garantia, se houver erro ou para renovar,
+            // podemos precisr dar `unsubscribe` nela. Mas o jeito ideal é:
             if (!subscription) {
-                // Subscribe
+                // Subscribe from scratch
                 subscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
                     applicationServerKey: PUBLIC_VAPID_KEY
@@ -110,6 +113,28 @@ export function AdminLayout() {
 
         } catch (error) {
             console.error('Error subscribing to push:', error);
+        }
+    };
+
+    // FUNÇÃO DEBUG: Força a limpeza para consertar o Erro 403 (Chaves VAPID trocadas)
+    const resetPushSubscription = async () => {
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            if (subscription) {
+                await subscription.unsubscribe();
+                console.log("Unregistered from FCM.");
+            }
+            // Clear DB for this user
+            if (user) {
+                await supabase.from('push_subscriptions').delete().eq('user_id', user.id);
+                console.log("Cleared from Supabase DB.");
+            }
+            alert("Memória do Push limpa! Por favor, recarregue a página e clique no Sininho para autorizar com a nova chave.");
+            window.location.reload();
+        } catch (err) {
+            console.error(err);
+            alert("Erro ao limpar a inscrição: " + err);
         }
     };
 
@@ -182,6 +207,12 @@ export function AdminLayout() {
                             <BellRing size={20} className={pushStatus === 'default' ? 'animate-pulse text-yellow-400' : ''} />
                             {pushStatus === 'granted' ? 'Notificações Ativas' : 
                              pushStatus === 'denied' ? 'Notificações Bloqueadas' : 'Ativar Notificações'}
+                        </button>
+                    )}
+                    
+                    {pushStatus === 'granted' && (
+                        <button onClick={resetPushSubscription} className="w-full text-center text-xs text-brand-300 hover:text-white transition-colors cursor-pointer pb-2">
+                           Problemas com alertas? Limpar cache
                         </button>
                     )}
 
