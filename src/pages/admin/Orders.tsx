@@ -17,6 +17,7 @@ import {
     FileSpreadsheet,
     FileText,
     Download,
+    Ban,
 } from 'lucide-react';
 import {
     startOfDay,
@@ -40,8 +41,10 @@ import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
 import type { Order } from '@/types';
 
 export default function Orders() {
-    const { orders, isLoading, fetchOrders, updateStatus } = useOrdersStore();
+    const { orders, isLoading, fetchOrders, updateStatus, cancelOrder } = useOrdersStore();
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+    const [isCancelling, setIsCancelling] = useState(false);
     const [filter, setFilter] = useState<string>('all');
 
     // Notification Sound (Base64 for reliability)
@@ -269,6 +272,7 @@ export default function Orders() {
                     { value: 'online', label: '🌐 Online' },
                     { value: 'pdv', label: '🏪 PDV' },
                     { value: 'completed', label: '✅ Concluídos' },
+                    { value: 'cancelled', label: '🚫 Cancelados' },
                 ].map((f) => (
                     <button
                         key={f.value}
@@ -449,7 +453,9 @@ export default function Orders() {
                                             ? 'bg-blue-100 text-blue-600'
                                             : order.status === 'completed'
                                                 ? 'bg-emerald-100 text-emerald-600'
-                                                : 'bg-red-100 text-red-600'
+                                                : order.status === 'cancelled'
+                                                    ? 'bg-gray-200 text-gray-500'
+                                                    : 'bg-red-100 text-red-600'
                                 )}
                             >
                                 {order.status === 'pending' ? (
@@ -458,6 +464,8 @@ export default function Orders() {
                                     <CheckCircle2 size={20} />
                                 ) : order.status === 'completed' ? (
                                     <CheckCircle2 size={20} />
+                                ) : order.status === 'cancelled' ? (
+                                    <Ban size={20} />
                                 ) : (
                                     <XCircle size={20} />
                                 )}
@@ -592,13 +600,34 @@ export default function Orders() {
                                 )}
 
                                 {order.status === 'accepted' && (
-                                    <div className="pt-3 border-t border-gray-100">
+                                    <div className="flex gap-2 pt-3 border-t border-gray-100">
                                         <Button
                                             size="sm"
                                             onClick={() => updateStatus(order.id, 'completed')}
                                             leftIcon={<CheckCircle2 size={16} />}
                                         >
                                             Marcar como Concluído
+                                        </Button>
+                                        <Button
+                                            variant="danger"
+                                            size="sm"
+                                            onClick={() => setCancelConfirmId(order.id)}
+                                            leftIcon={<Ban size={16} />}
+                                        >
+                                            Cancelar Pedido
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {order.status === 'completed' && (
+                                    <div className="pt-3 border-t border-gray-100">
+                                        <Button
+                                            variant="danger"
+                                            size="sm"
+                                            onClick={() => setCancelConfirmId(order.id)}
+                                            leftIcon={<Ban size={16} />}
+                                        >
+                                            Cancelar Pedido
                                         </Button>
                                     </div>
                                 )}
@@ -614,6 +643,66 @@ export default function Orders() {
                     </div>
                 )}
             </div>
+
+            {/* Cancel Confirmation Modal */}
+            {cancelConfirmId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-fade-in" onClick={() => !isCancelling && setCancelConfirmId(null)}>
+                    <div
+                        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-100 text-red-600">
+                                <Ban size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">Cancelar Pedido</h3>
+                                <p className="text-sm text-gray-500">
+                                    #{cancelConfirmId.slice(-4).toUpperCase()}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
+                            <p className="text-sm text-amber-800">
+                                <strong>Atenção:</strong> Ao cancelar este pedido, o estoque dos produtos será restaurado e o registro financeiro será atualizado.
+                            </p>
+                        </div>
+
+                        <p className="text-sm text-gray-600 mb-6">
+                            Tem certeza que deseja cancelar este pedido? Esta ação não poderá ser desfeita.
+                        </p>
+
+                        <div className="flex gap-3 justify-end">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCancelConfirmId(null)}
+                                disabled={isCancelling}
+                            >
+                                Voltar
+                            </Button>
+                            <Button
+                                variant="danger"
+                                size="sm"
+                                disabled={isCancelling}
+                                leftIcon={isCancelling ? <RefreshCw size={16} className="animate-spin" /> : <Ban size={16} />}
+                                onClick={async () => {
+                                    setIsCancelling(true);
+                                    try {
+                                        await cancelOrder(cancelConfirmId);
+                                    } finally {
+                                        setIsCancelling(false);
+                                        setCancelConfirmId(null);
+                                    }
+                                }}
+                            >
+                                {isCancelling ? 'Cancelando...' : 'Confirmar Cancelamento'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

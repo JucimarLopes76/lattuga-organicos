@@ -221,10 +221,13 @@ export default function Finance() {
                                                 "px-2 py-1 rounded text-xs font-bold",
                                                 t.status === 'completed' || t.status === 'paid'
                                                     ? "bg-green-100 text-green-700"
-                                                    : "bg-amber-100 text-amber-700"
+                                                    : t.status === 'cancelled'
+                                                        ? "bg-gray-200 text-gray-600"
+                                                        : "bg-amber-100 text-amber-700"
                                             )}>
                                                 {t.status === 'completed' ? 'Concluído' :
-                                                    t.status === 'paid' ? 'Pago' : 'Pendente'}
+                                                    t.status === 'paid' ? 'Pago' :
+                                                        t.status === 'cancelled' ? 'Cancelado' : 'Pendente'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-center">

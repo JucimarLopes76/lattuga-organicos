@@ -38,7 +38,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
             let queryOrders = supabase
                 .from('orders')
                 .select('*, items:order_items(product:products(name))') // customized join if needed
-                .eq('status', 'completed')
+                .in('status', ['completed', 'cancelled'])
                 .order('created_at', { ascending: false });
 
             if (startDate) queryOrders = queryOrders.gte('created_at', startDate.toISOString());
@@ -64,10 +64,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
                 id: o.id,
                 type: 'revenue',
                 date: o.created_at,
-                description: `Pedido #${o.id.slice(0, 8)}`, // Short ID
+                description: `Pedido #${o.id.slice(0, 8)}`,
                 amount: o.total_amount,
                 category: 'Venda',
-                status: 'completed',
+                status: o.status === 'cancelled' ? 'cancelled' : 'completed',
                 original: o as Order
             }));
 
@@ -86,8 +86,10 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
                 new Date(b.date).getTime() - new Date(a.date).getTime()
             );
 
-            // 4. Calculate Summary
-            const totalRevenue = orderTransactions.reduce((acc, t) => acc + Number(t.amount), 0);
+            // 4. Calculate Summary (exclude cancelled from revenue)
+            const totalRevenue = orderTransactions
+                .filter(t => t.status !== 'cancelled')
+                .reduce((acc, t) => acc + Number(t.amount), 0);
             const totalExpense = expenseTransactions.reduce((acc, t) => acc + Number(t.amount), 0);
 
             set({

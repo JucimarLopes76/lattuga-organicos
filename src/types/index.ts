@@ -29,7 +29,7 @@ export interface Customer {
 }
 
 export type OrderType = 'pdv' | 'online';
-export type OrderStatus = 'pending' | 'accepted' | 'rejected' | 'completed';
+export type OrderStatus = 'pending' | 'accepted' | 'rejected' | 'completed' | 'cancelled';
 export type DeliveryMethod = 'pickup' | 'delivery';
 export type PaymentMethod = 'pix' | 'debit' | 'credit' | 'cash';
 

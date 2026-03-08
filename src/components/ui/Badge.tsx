@@ -37,6 +37,7 @@ export function StatusBadge({ status }: { status: string }) {
         accepted: { variant: 'info', label: 'Aceito' },
         rejected: { variant: 'danger', label: 'Rejeitado' },
         completed: { variant: 'success', label: 'Concluído' },
+        cancelled: { variant: 'danger', label: 'Cancelado' },
     };
     const config = map[status] || { variant: 'neutral' as BadgeVariant, label: status };
     return <Badge variant={config.variant}>{config.label}</Badge>;

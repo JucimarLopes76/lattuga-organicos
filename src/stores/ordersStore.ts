@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 import type { Order, OrderItem } from '@/types';
 import { useProductsStore } from './productsStore';
+import { useFinanceStore } from './financeStore';
 import { sendOrderConfirmation } from '@/lib/evolutionApi';
 
 // Helper to deduct stock
@@ -33,6 +34,33 @@ const decrementStock = async (items: { product_id: string; quantity: number }[])
     }
 };
 
+// Helper to restore stock on cancellation
+const incrementStock = async (items: { product_id: string; quantity: number }[]) => {
+    try {
+        await Promise.all(
+            items.map(async (item) => {
+                const { data: product } = await supabase
+                    .from('products')
+                    .select('stock_qty')
+                    .eq('id', item.product_id)
+                    .single();
+
+                if (product) {
+                    const newStock = product.stock_qty + item.quantity;
+                    await supabase
+                        .from('products')
+                        .update({ stock_qty: newStock })
+                        .eq('id', item.product_id);
+                }
+            })
+        );
+        // Refresh products to reflect restored stock in UI
+        useProductsStore.getState().fetchProducts();
+    } catch (err) {
+        console.error('Error incrementing stock:', err);
+    }
+};
+
 export type OrderWithItems = Order & { items: (OrderItem & { product?: any })[] };
 
 interface OrdersState {
@@ -50,6 +78,9 @@ interface OrdersState {
 
     /** Update order status in Supabase and local state */
     updateStatus: (orderId: string, status: Order['status']) => Promise<void>;
+
+    /** Cancel an order, restore stock, and update finance */
+    cancelOrder: (orderId: string) => Promise<void>;
 }
 
 export const useOrdersStore = create<OrdersState>((set, get) => ({
@@ -217,6 +248,43 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
             console.error('Error updating order status:', error);
             // Revert on error — refetch
             get().fetchOrders();
+        }
+    },
+
+    cancelOrder: async (orderId) => {
+        const order = get().orders.find((o) => o.id === orderId);
+        if (!order) return;
+
+        // Optimistic update
+        set((state) => ({
+            orders: state.orders.map((o) =>
+                o.id === orderId ? { ...o, status: 'cancelled' as const } : o
+            ),
+        }));
+
+        const { error } = await supabase
+            .from('orders')
+            .update({ status: 'cancelled' })
+            .eq('id', orderId);
+
+        if (error) {
+            console.error('Error cancelling order:', error);
+            // Revert on error — refetch
+            get().fetchOrders();
+            return;
+        }
+
+        // Restore stock for items that had been deducted
+        // Stock is deducted on 'completed' (POS) or 'accepted' (online)
+        if (order.status === 'completed' || order.status === 'accepted') {
+            await incrementStock(order.items);
+        }
+
+        // Refresh finance data if the store has been loaded
+        try {
+            useFinanceStore.getState().fetchTransactions();
+        } catch (_) {
+            // Finance store may not have been initialized yet
         }
     },
 }));

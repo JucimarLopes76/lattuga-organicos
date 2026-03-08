@@ -10,6 +10,8 @@ import {
     QrCode,
     CheckCircle2,
     MessageCircle,
+    Search,
+    Loader2,
 } from 'lucide-react';
 import { useOnlineCartStore } from '@/stores/onlineCartStore';
 import { useOnlineSessionStore } from '@/stores/onlineSessionStore';
@@ -21,6 +23,56 @@ import { Input, Select } from '@/components/ui/Input';
 import type { DeliveryMethod, PaymentMethod } from '@/types';
 
 type Step = 'info' | 'delivery' | 'payment' | 'confirm';
+
+interface AddressForm {
+    cep: string;
+    logradouro: string;
+    numero: string;
+    complemento: string;
+    bairro: string;
+    cidade: string;
+    referencia: string;
+}
+
+const emptyAddress: AddressForm = {
+    cep: '',
+    logradouro: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    referencia: '',
+};
+
+function formatAddressStr(a: AddressForm): string {
+    const parts = [
+        a.logradouro,
+        a.numero ? `nº ${a.numero}` : '',
+        a.complemento,
+        a.bairro,
+        a.cidade,
+        a.cep,
+    ].filter(Boolean);
+    const addr = parts.join(', ');
+    return a.referencia ? `${addr} (Ref: ${a.referencia})` : addr;
+}
+
+function parseAddressString(addr: string): AddressForm {
+    const result = { ...emptyAddress };
+    const cepMatch = addr.match(/(\d{5}-?\d{3})/);
+    if (cepMatch) result.cep = cepMatch[1];
+    const numMatch = addr.match(/nº\s*(\S+)/i);
+    if (numMatch) result.numero = numMatch[1].replace(',', '');
+    const refMatch = addr.match(/\(Ref:\s*(.+?)\)$/i);
+    if (refMatch) result.referencia = refMatch[1].trim();
+    // Extract logradouro as the first comma-separated part
+    const cleaned = addr.replace(/,?\s*nº\s*\S+/i, '').replace(/,?\s*\d{5}-?\d{3}/g, '').replace(/\s*\(Ref:.*\)$/i, '');
+    const parts = cleaned.split(',').map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 1) result.logradouro = parts[0];
+    if (parts.length >= 2) result.bairro = parts[parts.length - 2] || '';
+    if (parts.length >= 3) result.cidade = parts[parts.length - 1] || '';
+    return result;
+}
 
 export default function Checkout() {
     const navigate = useNavigate();
@@ -36,31 +88,40 @@ export default function Checkout() {
     const [name, setName] = useState(customer.name);
     const [phone, setPhone] = useState(customer.phone);
     const [email, setEmail] = useState(customer.email);
-    const [address, setAddress] = useState(customer.address);
+    const [addressForm, setAddressForm] = useState<AddressForm>(() => {
+        // Try to parse existing saved address
+        if (customer.address) return parseAddressString(customer.address);
+        return emptyAddress;
+    });
     const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('pickup');
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
     const [payNow, setPayNow] = useState(true);
+    const [cepLoading, setCepLoading] = useState(false);
+    const [cepError, setCepError] = useState('');
+
+    const formattedAddress = formatAddressStr(addressForm);
 
     // Auto-update session when fields change
     useEffect(() => {
-        setCustomer({ name, phone, email, address });
-    }, [name, phone, email, address, setCustomer]);
+        setCustomer({ name, phone, email, address: formattedAddress });
+    }, [name, phone, email, formattedAddress, setCustomer]);
 
     // Lookup customer on mount or when phone changes (debounced could be better, but simple for now)
     useEffect(() => {
         const lookupCustomer = async () => {
-            if (phone.length >= 10) { // arbitrary length check
+            if (phone.length >= 10) {
                 const found = await findCustomerByPhone(phone);
                 if (found) {
-                    // Only fill if local fields are empty or match
                     if (!email) setEmail(found.email || '');
-                    if (!address) setAddress(found.address || '');
                     if (!name) setName(found.name);
+                    // Auto-fill address from customer if the form is empty
+                    if (found.address && addressForm.logradouro === '') {
+                        setAddressForm(parseAddressString(found.address));
+                    }
                 }
             }
         };
-        // Trigger lookup only if we have a phone and haven't fully filled details yet
-        if (phone && (!email || !address)) {
+        if (phone && (!email || addressForm.logradouro === '')) {
             lookupCustomer();
         }
     }, [phone, findCustomerByPhone]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -100,7 +161,7 @@ export default function Checkout() {
             // Let's rely on the fact that `addOrder` currently allows `customer_id: null`.
             // But we want to register. 
             // To fix this properly without changing too much, let's just create raw.
-            await createCustomer({ name, phone, email, address });
+            await createCustomer({ name, phone, email, address: formattedAddress });
             // And try to find it immediately? Or just proceed.
             const newlyCreated = await findCustomerByPhone(phone);
             if (newlyCreated) customerId = newlyCreated.id;
@@ -117,7 +178,7 @@ export default function Checkout() {
                 total_amount: subtotal,
                 discount_amount: 0,
                 surcharge_amount: 0,
-                delivery_address: deliveryMethod === 'delivery' ? address : null,
+                delivery_address: deliveryMethod === 'delivery' ? formattedAddress : null,
             },
             items.map((i) => ({
                 product_id: i.product.id,
@@ -146,7 +207,7 @@ export default function Checkout() {
             deliveryMethod,
             paymentMethod,
             name,
-            deliveryMethod === 'delivery' ? address : null
+            deliveryMethod === 'delivery' ? formattedAddress : null
         );
 
         const waLink = generateWhatsAppLink(whatsAppPhone, summary);
@@ -311,14 +372,128 @@ export default function Checkout() {
                     )}
 
                     {deliveryMethod === 'delivery' && (
-                        <Input
-                            label="Endereço de entrega"
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                            placeholder="Rua, número, complemento, bairro, cidade, CEP"
-                            icon={<MapPin size={16} />}
-                            required
-                        />
+                        <div className="space-y-3 animate-fade-in">
+                            {/* CEP row */}
+                            <div className="flex gap-2 items-end">
+                                <div className="flex-1">
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">CEP</label>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={9}
+                                        value={addressForm.cep}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setAddressForm((p) => ({ ...p, cep: val }));
+                                            setCepError('');
+                                            // Auto-lookup when 8 digits typed
+                                            const digits = val.replace(/\D/g, '');
+                                            if (digits.length === 8) {
+                                                setCepLoading(true);
+                                                fetch(`https://viacep.com.br/ws/${digits}/json/`)
+                                                    .then(r => r.json())
+                                                    .then(data => {
+                                                        if (data.erro) {
+                                                            setCepError('CEP não encontrado');
+                                                        } else {
+                                                            setAddressForm(prev => ({
+                                                                ...prev,
+                                                                logradouro: data.logradouro || prev.logradouro,
+                                                                bairro: data.bairro || prev.bairro,
+                                                                cidade: data.localidade || prev.cidade,
+                                                            }));
+                                                        }
+                                                    })
+                                                    .catch(() => setCepError('Erro ao buscar CEP'))
+                                                    .finally(() => setCepLoading(false));
+                                            }
+                                        }}
+                                        placeholder="00000-000"
+                                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none transition-all"
+                                        autoFocus
+                                    />
+                                </div>
+                                {cepLoading && (
+                                    <div className="pb-3">
+                                        <Loader2 size={20} className="animate-spin text-brand-500" />
+                                    </div>
+                                )}
+                            </div>
+                            {cepError && <p className="text-xs text-red-500">{cepError}</p>}
+
+                            {/* Logradouro */}
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Logradouro</label>
+                                <input
+                                    type="text"
+                                    value={addressForm.logradouro}
+                                    onChange={(e) => setAddressForm((p) => ({ ...p, logradouro: e.target.value }))}
+                                    placeholder="Rua, Avenida..."
+                                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none transition-all"
+                                />
+                            </div>
+
+                            {/* Número + Complemento */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Número *</label>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        value={addressForm.numero}
+                                        onChange={(e) => setAddressForm((p) => ({ ...p, numero: e.target.value }))}
+                                        placeholder="Nº"
+                                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Complemento</label>
+                                    <input
+                                        type="text"
+                                        value={addressForm.complemento}
+                                        onChange={(e) => setAddressForm((p) => ({ ...p, complemento: e.target.value }))}
+                                        placeholder="Apto, bloco..."
+                                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Bairro + Cidade */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Bairro</label>
+                                    <input
+                                        type="text"
+                                        value={addressForm.bairro}
+                                        onChange={(e) => setAddressForm((p) => ({ ...p, bairro: e.target.value }))}
+                                        placeholder="Bairro"
+                                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none transition-all"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Cidade</label>
+                                    <input
+                                        type="text"
+                                        value={addressForm.cidade}
+                                        onChange={(e) => setAddressForm((p) => ({ ...p, cidade: e.target.value }))}
+                                        placeholder="Cidade"
+                                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Referência */}
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Referência (opcional)</label>
+                                <input
+                                    type="text"
+                                    value={addressForm.referencia}
+                                    onChange={(e) => setAddressForm((p) => ({ ...p, referencia: e.target.value }))}
+                                    placeholder="Próximo a..."
+                                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none transition-all"
+                                />
+                            </div>
+                        </div>
                     )}
 
                     <div className="flex gap-3">
@@ -333,7 +508,7 @@ export default function Checkout() {
                             onClick={() => setStep('payment')}
                             className="flex-1"
                             size="lg"
-                            disabled={deliveryMethod === 'delivery' && !address}
+                            disabled={deliveryMethod === 'delivery' && (!addressForm.logradouro || !addressForm.numero)}
                         >
                             Continuar
                         </Button>
@@ -486,7 +661,7 @@ export default function Checkout() {
                                     : `🚚 Delivery`}
                             </p>
                             {deliveryMethod === 'delivery' && (
-                                <p className="text-sm text-gray-600">{address}</p>
+                                <p className="text-sm text-gray-600">{formattedAddress}</p>
                             )}
                         </div>
 

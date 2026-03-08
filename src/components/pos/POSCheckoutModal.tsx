@@ -383,7 +383,24 @@ export function POSCheckoutModal({ isOpen, onClose, onComplete }: Props) {
                             <span className="text-sm font-medium">Retira na Loja</span>
                         </button>
                         <button
-                            onClick={() => setDeliveryMethod('delivery')}
+                            onClick={() => {
+                                setDeliveryMethod('delivery');
+                                // Auto-fill from customer's saved address if available
+                                if (selectedCustomer?.address && address.logradouro === '') {
+                                    const saved = selectedCustomer.address;
+                                    // Try to extract CEP (8 digits pattern like 00000-000 or 00000000)
+                                    const cepMatch = saved.match(/(\d{5}-?\d{3})/);
+                                    // Try to extract 'nº XXX' pattern
+                                    const numMatch = saved.match(/nº\s*(\S+)/i);
+                                    // Simple heuristic: fill logradouro with the full saved string so user can edit
+                                    setAddress((prev) => ({
+                                        ...prev,
+                                        cep: cepMatch ? cepMatch[1] : '',
+                                        logradouro: saved.replace(/,?\s*nº\s*\S+/i, '').replace(/,?\s*\d{5}-?\d{3}/g, '').replace(/\s*\(Ref:.*\)$/i, '').split(',')[0]?.trim() || saved,
+                                        numero: numMatch ? numMatch[1].replace(',', '') : '',
+                                    }));
+                                }
+                            }}
                             className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${deliveryMethod === 'delivery'
                                 ? 'border-brand-500 bg-brand-50 text-brand-700'
                                 : 'border-gray-200 hover:border-gray-300 text-gray-600'
