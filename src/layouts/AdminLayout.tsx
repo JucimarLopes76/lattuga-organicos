@@ -9,9 +9,11 @@ import {
     Menu,
     X,
     Wallet,
+    BellRing,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import logoImg from '@/imagens/logo_lattuga_organicos-removebg-preview.png';
 
@@ -24,9 +26,92 @@ const navItems = [
     { to: '/admin/analytics', icon: BarChart3, label: 'Análises' },
 ];
 
+// VAPID Public key from the environment
+const PUBLIC_VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+
 export function AdminLayout() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [pushStatus, setPushStatus] = useState<NotificationPermission | 'unsupported'>('default');
     const logout = useAuthStore((s) => s.logout);
+    const user = useAuthStore((s) => s.user);
+
+    // Dynamic Manifest Injection for Admin PWA
+    useEffect(() => {
+        const setManifest = (manifestPath: string) => {
+            let link = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
+            if (!link) {
+                link = document.createElement('link');
+                link.rel = 'manifest';
+                document.head.appendChild(link);
+            }
+            link.href = manifestPath;
+        };
+
+        // Set admin manifest when entering admin area
+        setManifest('/admin-manifest.json');
+
+        // Cleanup: restore public manifest when unmounting
+        return () => {
+            setManifest('/manifest.webmanifest');
+        };
+    }, []);
+
+    // Push Notification Setup
+    useEffect(() => {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            setPushStatus('unsupported');
+            return;
+        }
+
+        setPushStatus(Notification.permission);
+
+        // Auto-subscribe if they already granted permission
+        if (Notification.permission === 'granted') {
+            subscribeToPush();
+        }
+    }, [user]);
+
+    const subscribeToPush = async () => {
+        if (!user || pushStatus === 'unsupported') return;
+
+        try {
+            const permission = await Notification.requestPermission();
+            setPushStatus(permission);
+
+            if (permission !== 'granted') return;
+
+            const registration = await navigator.serviceWorker.ready;
+
+            // Check if already subscribed
+            let subscription = await registration.pushManager.getSubscription();
+            
+            if (!subscription) {
+                // Subscribe
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: PUBLIC_VAPID_KEY
+                });
+            }
+
+            // Save to Supabase
+            const subJson = subscription.toJSON();
+            
+            // Delete old subscriptions for this user if we want 1 device strictly?
+            // Usually we allow multiple. We rely on the UNIQUE constraint in DB.
+            const { error } = await supabase
+                .from('push_subscriptions')
+                .upsert(
+                    { user_id: user.id, subscription_json: subJson },
+                    { onConflict: 'user_id, subscription_json' }
+                );
+
+            if (error) console.error('Failed to save push subscription:', error);
+            else console.log('Push subscription active and saved.');
+
+        } catch (error) {
+            console.error('Error subscribing to push:', error);
+        }
+    };
 
     return (
         <div className="flex h-screen bg-gray-50">
@@ -81,7 +166,25 @@ export function AdminLayout() {
                 </nav>
 
                 {/* Bottom */}
-                <div className="px-3 py-4 border-t border-brand-700">
+                <div className="px-3 py-4 border-t border-brand-700 space-y-2">
+                    {/* Push Notification Toggle */}
+                    {pushStatus !== 'unsupported' && (
+                        <button
+                            onClick={subscribeToPush}
+                            disabled={pushStatus === 'granted' || pushStatus === 'denied'}
+                            className={cn(
+                                "flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                                pushStatus === 'granted' ? "text-green-400 bg-brand-900/50 cursor-default" :
+                                pushStatus === 'denied' ? "text-red-400 bg-brand-900/50 cursor-not-allowed" :
+                                "text-brand-200 hover:bg-brand-700 hover:text-white cursor-pointer"
+                            )}
+                        >
+                            <BellRing size={20} className={pushStatus === 'default' ? 'animate-pulse text-yellow-400' : ''} />
+                            {pushStatus === 'granted' ? 'Notificações Ativas' : 
+                             pushStatus === 'denied' ? 'Notificações Bloqueadas' : 'Ativar Notificações'}
+                        </button>
+                    )}
+
                     <button
                         onClick={logout}
                         className="flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-brand-200 hover:bg-brand-700 hover:text-white transition-all cursor-pointer"
@@ -95,18 +198,36 @@ export function AdminLayout() {
             {/* Main content */}
             <div className="flex flex-1 flex-col min-w-0">
                 {/* Mobile header */}
-                <header className="flex items-center gap-4 px-4 py-3 bg-white border-b border-gray-100 lg:hidden">
-                    <button
-                        onClick={() => setSidebarOpen(true)}
-                        className="p-2 rounded-lg hover:bg-gray-100 cursor-pointer"
-                    >
-                        <Menu size={22} />
-                    </button>
-                    <div className="flex items-center">
-                        <div className="bg-brand-800 rounded-xl overflow-hidden">
-                            <img src={logoImg} alt="Lattuga" className="h-[50px] w-[50px] object-contain scale-150" />
+                <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 lg:hidden">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setSidebarOpen(true)}
+                            className="p-2 rounded-lg hover:bg-gray-100 cursor-pointer"
+                        >
+                            <Menu size={22} />
+                        </button>
+                        <div className="flex items-center">
+                            <div className="bg-brand-800 rounded-xl overflow-hidden">
+                                <img src={logoImg} alt="Lattuga" className="h-[50px] w-[50px] object-contain scale-150" />
+                            </div>
                         </div>
                     </div>
+                    {/* Mobile Push Status */}
+                    {pushStatus !== 'unsupported' && (
+                        <button
+                            onClick={subscribeToPush}
+                            disabled={pushStatus === 'granted' || pushStatus === 'denied'}
+                            className={cn(
+                                "p-2 rounded-full transition-colors",
+                                pushStatus === 'granted' ? "text-brand-600 bg-brand-50" :
+                                pushStatus === 'denied' ? "text-red-500 bg-red-50" :
+                                "text-yellow-600 bg-yellow-50 hover:bg-yellow-100 cursor-pointer animate-pulse"
+                            )}
+                            title="Notificações"
+                        >
+                            <BellRing size={20} />
+                        </button>
+                    )}
                 </header>
 
                 {/* Page content */}
