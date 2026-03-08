@@ -120,17 +120,27 @@ export function AdminLayout() {
     const resetPushSubscription = async () => {
         try {
             const registration = await navigator.serviceWorker.ready;
+            
+            // 1. Unsubscribe from FCM Push Manager
             const subscription = await registration.pushManager.getSubscription();
             if (subscription) {
                 await subscription.unsubscribe();
                 console.log("Unregistered from FCM.");
             }
-            // Clear DB for this user
+            
+            // 2. Clear DB for this user
             if (user) {
                 await supabase.from('push_subscriptions').delete().eq('user_id', user.id);
                 console.log("Cleared from Supabase DB.");
             }
-            alert("Memória do Push limpa! Por favor, recarregue a página e clique no Sininho para autorizar com a nova chave.");
+            
+            // 3. UNREGISTER THE SERVICE WORKER COMPLETELY (Forces browser to grab new VAPID keys on reload)
+            const unregisterSuccess = await registration.unregister();
+            if (unregisterSuccess) {
+                console.log("Service Worker Unregistered.");
+            }
+
+            alert("Memória do Push limpa com sucesso! O aplicativo vai reiniciar agora. Por favor, clique no Sininho novamente para autorizar.");
             window.location.reload();
         } catch (err) {
             console.error(err);
