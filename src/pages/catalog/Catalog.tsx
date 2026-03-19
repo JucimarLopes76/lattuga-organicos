@@ -6,9 +6,14 @@ import { useProductsStore } from '@/stores/productsStore';
 import { useOnlineCartStore } from '@/stores/onlineCartStore';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Spinner } from '@/components/ui/Spinner';
+import { useSeo } from '@/hooks/useSeo';
 import type { Product } from '@/types';
 
 export default function Catalog() {
+    useSeo({
+        title: 'Catálogo de Produtos | Lattuga Orgânicos',
+        description: 'Explore nossa seleção de produtos orgânicos frescos, direto da terra para a sua mesa.'
+    });
     const [search, setSearch] = useState('');
     const [activeCategory, setActiveCategory] = useState('Todas');
     const addItem = useOnlineCartStore((s) => s.addItem);
