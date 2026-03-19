@@ -1,7 +1,9 @@
 import { useMemo, useEffect } from 'react';
 import { ShoppingBag, Leaf, ArrowRight } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
+import { useProductsStore } from '@/stores/productsStore';
 import { useOnlineCartStore } from '@/stores/onlineCartStore';
+import type { Product } from '@/types';
 import { Spinner } from '@/components/ui/Spinner';
 import { useSeo } from '@/hooks/useSeo';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -29,11 +31,11 @@ export default function Offers() {
     }, [fetchProducts]);
 
     const offersByCategory = useMemo(() => {
-        const offers = allProducts.filter(p => p.show_in_catalog && p.is_active && p.feature_badge === 'offer');
+        const offers = allProducts.filter((p: Product) => p.show_in_catalog && p.is_active && p.feature_badge === 'offer');
         
         let filteredOffers = offers;
         if (category) {
-            filteredOffers = offers.filter(p => p.category.toLowerCase() === category.toLowerCase());
+            filteredOffers = offers.filter((p: Product) => p.category.toLowerCase() === category.toLowerCase());
         }
 
         // Group by category
@@ -101,7 +103,7 @@ export default function Offers() {
                                 )}
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                                {prods.map((product) => {
+                                {prods.map((product: Product) => {
                                     const inCart = cartItems.find((i) => i.product.id === product.id);
                                     const currentQty = inCart?.quantity || 0;
                                     const remainingStock = Math.max(0, product.stock_qty - currentQty);
