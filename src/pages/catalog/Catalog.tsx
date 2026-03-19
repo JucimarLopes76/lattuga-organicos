@@ -42,7 +42,7 @@ export default function Catalog() {
 
     const offers = useMemo(() => filteredProducts.filter(p => p.feature_badge === 'offer'), [filteredProducts]);
     const highlights = useMemo(() => filteredProducts.filter(p => p.feature_badge === 'highlight'), [filteredProducts]);
-    const normalProducts = useMemo(() => filteredProducts.filter(p => p.feature_badge === 'none'), [filteredProducts]);
+    const normalProducts = useMemo(() => filteredProducts.filter(p => !p.feature_badge || p.feature_badge === 'none'), [filteredProducts]);
 
     const handleAdd = (product: Product) => {
         addItem(product);
