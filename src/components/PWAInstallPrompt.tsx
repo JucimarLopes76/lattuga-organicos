@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Download, X, Share } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 interface BeforeInstallPromptEvent extends Event {
     prompt: () => Promise<void>;
@@ -29,10 +30,26 @@ function isIOS(): boolean {
 }
 
 export function PWAInstallPrompt() {
+    const location = useLocation();
+    const isAdminRoute = location.pathname.startsWith('/admin') || location.pathname.startsWith('/login');
+    const appName = isAdminRoute ? 'Lattuga Admin' : 'Lattuga';
+
     const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
     const [showBanner, setShowBanner] = useState(false);
     const [showIOSBanner, setShowIOSBanner] = useState(false);
     const [installing, setInstalling] = useState(false);
+
+    // Swap manifest dynamically based on route
+    useEffect(() => {
+        let manifestLink = document.querySelector('link[rel="manifest"]');
+        if (!manifestLink) {
+            manifestLink = document.createElement('link');
+            manifestLink.setAttribute('rel', 'manifest');
+            document.head.appendChild(manifestLink);
+        }
+        // Use vite-pwa's default manifest for public, and custom admin-manifest for admin
+        manifestLink.setAttribute('href', isAdminRoute ? '/admin-manifest.json' : '/manifest.webmanifest');
+    }, [isAdminRoute]);
 
     useEffect(() => {
         if (isStandalone() || isDismissed()) return;
@@ -137,7 +154,7 @@ export function PWAInstallPrompt() {
                                 lineHeight: '1.3',
                             }}
                         >
-                            Instalar Lattuga
+                            Instalar {appName}
                         </div>
                         <div
                             style={{
