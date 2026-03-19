@@ -43,6 +43,7 @@ export default function Products() {
     const [formImageUrl, setFormImageUrl] = useState('');
     const [formShowCatalog, setFormShowCatalog] = useState(true);
     const [formSupplierCode, setFormSupplierCode] = useState('');
+    const [formFeatureBadge, setFormFeatureBadge] = useState<'none'|'highlight'|'offer'>('none');
     const [saving, setSaving] = useState(false);
     const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
 
@@ -73,6 +74,7 @@ export default function Products() {
         setFormImageUrl('');
         setFormShowCatalog(true);
         setFormSupplierCode('');
+        setFormFeatureBadge('none');
         setShowModal(true);
     };
 
@@ -87,6 +89,7 @@ export default function Products() {
         setFormImageUrl(p.image_url || '');
         setFormShowCatalog(p.show_in_catalog);
         setFormSupplierCode(p.supplier_code || '');
+        setFormFeatureBadge(p.feature_badge || 'none');
         setShowModal(true);
     };
 
@@ -103,6 +106,7 @@ export default function Products() {
                 image_url: formImageUrl || null,
                 show_in_catalog: formShowCatalog,
                 supplier_code: formSupplierCode || null,
+                feature_badge: formFeatureBadge,
             });
         } else {
             await createProduct({
@@ -116,6 +120,7 @@ export default function Products() {
                 is_active: true,
                 show_in_catalog: formShowCatalog,
                 supplier_code: formSupplierCode || null,
+                feature_badge: formFeatureBadge,
             });
         }
         setSaving(false);
@@ -478,8 +483,19 @@ export default function Products() {
                             onChange={(e) => setFormStock(e.target.value)}
                         />
                     </div>
-                    <Select
-                        label="Categoria"
+                    <div className="grid grid-cols-2 gap-4">
+                        <Select
+                            label="Destaque Especial"
+                            value={formFeatureBadge}
+                            onChange={(e) => setFormFeatureBadge(e.target.value as any)}
+                            options={[
+                                { value: 'none', label: 'Nenhum' },
+                                { value: 'highlight', label: 'Destaque' },
+                                { value: 'offer', label: 'Oferta da Semana' },
+                            ]}
+                        />
+                        <Select
+                            label="Categoria"
                         value={formCategory}
                         onChange={(e) => setFormCategory(e.target.value)}
                         options={[

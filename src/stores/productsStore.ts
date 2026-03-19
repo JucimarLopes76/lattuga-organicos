@@ -56,6 +56,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
                 stock_qty: p.stock_qty,
                 is_active: p.is_active,
                 show_in_catalog: p.show_in_catalog,
+                feature_badge: p.feature_badge || 'none',
                 created_at: p.created_at,
                 updated_at: p.updated_at,
             }));
@@ -110,6 +111,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
                 image_url: product.image_url || null,
                 is_active: product.is_active,
                 show_in_catalog: product.show_in_catalog,
+                feature_badge: product.feature_badge || 'none',
             })
             .select()
             .single();
@@ -133,6 +135,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
                 stock_qty: data.stock_qty,
                 is_active: data.is_active,
                 show_in_catalog: data.show_in_catalog,
+                feature_badge: data.feature_badge || 'none',
                 created_at: data.created_at,
                 updated_at: data.updated_at,
             };

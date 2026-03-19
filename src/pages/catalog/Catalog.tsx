@@ -28,7 +28,7 @@ export default function Catalog() {
         fetchProducts();
     }, [fetchProducts]);
 
-    const products = useMemo(() => {
+    const filteredProducts = useMemo(() => {
         return allProducts.filter((p) => {
             if (!p.show_in_catalog || !p.is_active) return false;
             const matchCat =
@@ -40,10 +40,122 @@ export default function Catalog() {
         });
     }, [search, activeCategory, allProducts]);
 
+    const offers = useMemo(() => filteredProducts.filter(p => p.feature_badge === 'offer'), [filteredProducts]);
+    const highlights = useMemo(() => filteredProducts.filter(p => p.feature_badge === 'highlight'), [filteredProducts]);
+    const normalProducts = useMemo(() => filteredProducts.filter(p => p.feature_badge === 'none'), [filteredProducts]);
+
     const handleAdd = (product: Product) => {
         addItem(product);
         setAddedId(product.id);
         setTimeout(() => setAddedId(null), 800);
+    };
+
+    const renderGrid = (title: string | null, list: Product[], badgeText?: string, badgeColor?: string) => {
+        if (list.length === 0) return null;
+        return (
+            <div className="mb-10">
+                {title && <h2 className="text-xl font-bold text-gray-900 mb-4">{title}</h2>}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                    {list.map((product) => {
+                        const inCart = cartItems.find((i) => i.product.id === product.id);
+                        const justAdded = addedId === product.id;
+                        const currentQty = inCart?.quantity || 0;
+                        const remainingStock = Math.max(0, product.stock_qty - currentQty);
+
+                        return (
+                            <div
+                                key={product.id}
+                                className={cn(
+                                    "group relative flex flex-col rounded-2xl bg-white shadow-sm hover:shadow-xl border overflow-hidden transition-all duration-300 hover:-translate-y-1",
+                                    badgeText === 'Oferta' ? 'border-red-200 shadow-red-100/50' : badgeText === 'Destaque' ? 'border-amber-200' : 'border-gray-100'
+                                )}
+                            >
+                                <div className="relative aspect-square overflow-hidden bg-gray-100">
+                                    {product.image_url ? (
+                                        <img
+                                            src={product.image_url}
+                                            alt={product.name}
+                                            className={`h-full w-full object-cover transition-transform duration-500 ${remainingStock === 0 ? 'grayscale' : 'group-hover:scale-110'}`}
+                                            loading="lazy"
+                                        />
+                                    ) : (
+                                        <div className="flex h-full items-center justify-center text-gray-300">
+                                            <ShoppingBag size={40} />
+                                        </div>
+                                    )}
+                                    {badgeText && (
+                                        <span className={cn("absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold text-white shadow-md z-10", badgeColor)}>
+                                            {badgeText === 'Oferta' ? 'Oferta!' : 'Destaque'}
+                                        </span>
+                                    )}
+                                    <span className={`absolute bottom-3 right-3 px-2 py-1 rounded-full text-[10px] font-bold shadow-sm backdrop-blur-sm z-10 ${remainingStock === 0 ? 'bg-gray-800 text-white' : remainingStock < 5 ? 'bg-red-100 text-red-700' : 'bg-white/90 text-brand-700'}`}>
+                                        {remainingStock === 0 ? 'Esgotado' : `${remainingStock} un`}
+                                    </span>
+                                </div>
+
+                                <div className="flex flex-1 flex-col p-4">
+                                    <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 mb-1">
+                                        {product.name}
+                                    </h3>
+                                    <p className="text-xs text-gray-500 line-clamp-2 mb-3">
+                                        {product.description}
+                                    </p>
+                                    <div className="mt-auto">
+                                        <span className={cn("text-lg font-bold block mb-2", badgeText === 'Oferta' ? 'text-red-600' : 'text-brand-600')}>
+                                            {formatCurrency(product.price)}
+                                        </span>
+
+                                        {inCart ? (
+                                            <div className={cn("flex items-center justify-between rounded-lg p-1", badgeText === 'Oferta' ? 'bg-red-50' : 'bg-brand-50')}>
+                                                <button
+                                                    onClick={() => updateQuantity(product.id, inCart.quantity - 1)}
+                                                    className={cn("h-7 w-7 flex-shrink-0 flex items-center justify-center rounded-md bg-white shadow-sm hover:text-red-500 transition-colors cursor-pointer", badgeText === 'Oferta' ? 'text-red-600' : 'text-brand-600')}
+                                                >
+                                                    <Minus size={14} />
+                                                </button>
+                                                <span className={cn("text-sm font-bold min-w-[20px] text-center", badgeText === 'Oferta' ? 'text-red-900' : 'text-brand-900')}>
+                                                    {inCart.quantity}
+                                                </span>
+                                                <button
+                                                    onClick={() => {
+                                                        if (remainingStock > 0) updateQuantity(product.id, inCart.quantity + 1);
+                                                    }}
+                                                    disabled={remainingStock <= 0}
+                                                    className={cn("h-7 w-7 flex-shrink-0 flex items-center justify-center rounded-md text-white shadow-sm transition-colors cursor-pointer", remainingStock > 0 ? (badgeText === 'Oferta' ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-600 hover:bg-brand-700') : 'bg-gray-300 cursor-not-allowed')}
+                                                >
+                                                    <Plus size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleAdd(product)}
+                                                disabled={remainingStock <= 0}
+                                                className={cn(
+                                                    'flex h-9 w-full items-center justify-center rounded-xl transition-all duration-200 cursor-pointer text-sm font-medium gap-1',
+                                                    remainingStock <= 0
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                        : justAdded
+                                                            ? (badgeText === 'Oferta' ? 'bg-red-600 text-white scale-[1.02]' : 'bg-brand-600 text-white scale-[1.02]')
+                                                            : (badgeText === 'Oferta' ? 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white active:scale-95' : 'bg-brand-50 text-brand-600 hover:bg-brand-600 hover:text-white active:scale-95')
+                                                )}
+                                            >
+                                                {remainingStock <= 0 ? (
+                                                    <span className="text-xs font-bold">Esgotado</span>
+                                                ) : justAdded ? (
+                                                    <><Check size={16} /> <span>Adicionado</span></>
+                                                ) : (
+                                                    <><Plus size={16} /> <span>Adicionar</span></>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -108,104 +220,25 @@ export default function Catalog() {
             <div className="flex flex-col lg:flex-row gap-8 items-start">
                 {/* Product Grid */}
                 <div className="flex-1 w-full">
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-                        {products.map((product) => {
-                            const inCart = cartItems.find((i) => i.product.id === product.id);
-                            const justAdded = addedId === product.id;
-                            const currentQty = inCart?.quantity || 0;
-                            const remainingStock = Math.max(0, product.stock_qty - currentQty);
-
-                            return (
-                                <div
-                                    key={product.id}
-                                    className="group relative flex flex-col rounded-2xl bg-white shadow-sm hover:shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:-translate-y-1"
-                                >
-                                    {/* Image */}
-                                    <div className="relative aspect-square overflow-hidden bg-gray-100">
-                                        {product.image_url ? (
-                                            <img
-                                                src={product.image_url}
-                                                alt={product.name}
-                                                className={`h-full w-full object-cover transition-transform duration-500 ${remainingStock === 0 ? 'grayscale' : 'group-hover:scale-110'}`}
-                                                loading="lazy"
-                                            />
-                                        ) : (
-                                            <div className="flex h-full items-center justify-center text-gray-300">
-                                                <ShoppingBag size={40} />
-                                            </div>
-                                        )}
-                                        {/* Category badge */}
-                                        <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-white/90 backdrop-blur-sm text-xs font-semibold text-brand-700">
-                                            {product.category}
-                                        </span>
-                                        {/* Stock badge */}
-                                        <span className={`absolute bottom-3 right-3 px-2 py-1 rounded-full text-[10px] font-bold shadow-sm backdrop-blur-sm ${remainingStock === 0 ? 'bg-gray-800 text-white' : remainingStock < 5 ? 'bg-red-100 text-red-700' : 'bg-white/90 text-brand-700'}`}>
-                                            {remainingStock === 0 ? 'Esgotado' : `${remainingStock} un`}
-                                        </span>
-                                    </div>
-
-                                    {/* Info */}
-                                    <div className="flex flex-1 flex-col p-4">
-                                        <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 mb-1">
-                                            {product.name}
-                                        </h3>
-                                        <p className="text-xs text-gray-500 line-clamp-2 mb-3">
-                                            {product.description}
-                                        </p>
-                                        <div className="mt-auto">
-                                            <span className="text-lg font-bold text-brand-600 block mb-2">
-                                                {formatCurrency(product.price)}
-                                            </span>
-
-                                            {inCart ? (
-                                                <div className="flex items-center justify-between bg-brand-50 rounded-lg p-1">
-                                                    <button
-                                                        onClick={() => updateQuantity(product.id, inCart.quantity - 1)}
-                                                        className="h-7 w-7 flex-shrink-0 flex items-center justify-center rounded-md bg-white text-brand-600 shadow-sm hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer"
-                                                    >
-                                                        <Minus size={14} />
-                                                    </button>
-                                                    <span className="text-sm font-bold text-brand-900 min-w-[20px] text-center">
-                                                        {inCart.quantity}
-                                                    </span>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (remainingStock > 0) updateQuantity(product.id, inCart.quantity + 1);
-                                                        }}
-                                                        disabled={remainingStock <= 0}
-                                                        className={`h-7 w-7 flex-shrink-0 flex items-center justify-center rounded-md text-white shadow-sm transition-colors cursor-pointer ${remainingStock > 0 ? 'bg-brand-600 hover:bg-brand-700' : 'bg-gray-300 cursor-not-allowed'}`}
-                                                    >
-                                                        <Plus size={14} />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleAdd(product)}
-                                                    disabled={remainingStock <= 0}
-                                                    className={cn(
-                                                        'flex h-9 w-full items-center justify-center rounded-xl transition-all duration-200 cursor-pointer text-sm font-medium gap-1',
-                                                        remainingStock <= 0
-                                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                            : justAdded
-                                                                ? 'bg-brand-600 text-white scale-[1.02]'
-                                                                : 'bg-brand-50 text-brand-600 hover:bg-brand-600 hover:text-white active:scale-95'
-                                                    )}
-                                                >
-                                                    {remainingStock <= 0 ? (
-                                                        <span className="text-xs font-bold">Esgotado</span>
-                                                    ) : justAdded ? (
-                                                        <><Check size={16} /> <span>Adicionado</span></>
-                                                    ) : (
-                                                        <><Plus size={16} /> <span>Adicionar</span></>
-                                                    )}
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    
+                    {renderGrid(
+                        offers.length > 0 ? "🔥 Ofertas da Semana" : null, 
+                        offers, 
+                        "Oferta", 
+                        "bg-red-600 animate-pulse"
+                    )}
+                    
+                    {renderGrid(
+                        highlights.length > 0 ? "⭐ Destaques Lattuga" : null, 
+                        highlights, 
+                        "Destaque", 
+                        "bg-amber-500"
+                    )}
+                    
+                    {renderGrid(
+                        offers.length > 0 || highlights.length > 0 ? "🌿 Outros Produtos" : null, 
+                        normalProducts
+                    )}
 
                     {isLoading && allProducts.length === 0 && (
                         <div className="flex items-center justify-center py-20">
@@ -213,7 +246,7 @@ export default function Catalog() {
                         </div>
                     )}
 
-                    {!isLoading && products.length === 0 && (
+                    {!isLoading && filteredProducts.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                             <Search size={48} className="mb-4 opacity-50" />
                             <p className="font-medium">Nenhum produto encontrado</p>

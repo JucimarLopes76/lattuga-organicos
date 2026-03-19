@@ -15,6 +15,7 @@ export interface Product {
     stock_qty: number;
     is_active: boolean;
     show_in_catalog: boolean;
+    feature_badge: 'none' | 'highlight' | 'offer';
     created_at: string;
     updated_at: string;
 }

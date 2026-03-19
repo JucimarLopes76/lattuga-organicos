@@ -12,6 +12,7 @@ import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 // Pages - lazy loaded to enable code splitting
 const Login = lazy(() => import('@/pages/Login'));
 const Catalog = lazy(() => import('@/pages/catalog/Catalog'));
+const Offers = lazy(() => import('@/pages/catalog/Offers'));
 const Cart = lazy(() => import('@/pages/catalog/Cart'));
 const Checkout = lazy(() => import('@/pages/catalog/Checkout'));
 const POS = lazy(() => import('@/pages/admin/POS'));
@@ -43,6 +44,8 @@ export default function App() {
                     {/* Public routes */}
                     <Route element={<PublicLayout />}>
                         <Route path="/" element={<Catalog />} />
+                        <Route path="/ofertas" element={<Offers />} />
+                        <Route path="/ofertas/:category" element={<Offers />} />
                         <Route path="/cart" element={<Cart />} />
                         <Route path="/checkout" element={<Checkout />} />
                     </Route>

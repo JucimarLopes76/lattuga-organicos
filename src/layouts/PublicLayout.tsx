@@ -107,12 +107,19 @@ export function PublicLayout() {
                             to="/"
                             className={cn(
                                 'text-sm font-medium transition-colors',
-                                location.pathname === '/'
-                                    ? 'text-brand-600'
-                                    : 'text-gray-600 hover:text-brand-600'
+                                location.pathname === '/' ? 'text-brand-600' : 'text-gray-600 hover:text-brand-600'
                             )}
                         >
                             Catálogo
+                        </Link>
+                        <Link
+                            to="/ofertas"
+                            className={cn(
+                                'flex items-center gap-1 text-sm font-bold transition-colors',
+                                location.pathname.startsWith('/ofertas') ? 'text-red-600' : 'text-red-500 hover:text-red-600'
+                            )}
+                        >
+                            🏷️ Ofertas
                         </Link>
                         <Link
                             to="/cart"
@@ -157,6 +164,13 @@ export function PublicLayout() {
                                 className="px-4 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"
                             >
                                 Catálogo
+                            </Link>
+                            <Link
+                                to="/ofertas"
+                                onClick={() => setMenuOpen(false)}
+                                className="px-4 py-3 rounded-lg text-sm font-bold text-red-600 hover:bg-white transition-colors flex items-center gap-2"
+                            >
+                                🏷️ Ofertas da Semana
                             </Link>
                             <Link
                                 to="/cart"
