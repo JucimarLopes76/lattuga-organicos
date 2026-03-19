@@ -509,6 +509,7 @@ export default function Products() {
                             { value: 'Laticínios', label: 'Laticínios' },
                         ]}
                     />
+                    </div>
                     <Input
                         label="URL da Imagem"
                         value={formImageUrl}
