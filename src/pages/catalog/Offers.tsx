@@ -1,8 +1,6 @@
 import { useMemo, useEffect } from 'react';
 import { ShoppingBag, Leaf, ArrowRight } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
-import { useProductsStore } from '@/stores/productsStore';
-import { ProductCard } from '@/components/ProductCard'; // We'll extract the product rendering into a new component or just map it inline. Let's map inline to avoid creating new files if not strictly needed.
 import { useOnlineCartStore } from '@/stores/onlineCartStore';
 import { Spinner } from '@/components/ui/Spinner';
 import { useSeo } from '@/hooks/useSeo';
