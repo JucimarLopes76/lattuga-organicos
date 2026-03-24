@@ -16,6 +16,7 @@ interface FinanceState {
 
     fetchTransactions: (startDate?: Date, endDate?: Date) => Promise<void>;
     addExpense: (expense: Omit<Expense, 'id' | 'created_at'>) => Promise<void>;
+    addExpenses: (expenses: Omit<Expense, 'id' | 'created_at'>[]) => Promise<void>;
     deleteExpense: (id: string) => Promise<void>;
     updateExpense: (id: string, updates: Partial<Expense>) => Promise<void>;
 }
@@ -113,6 +114,18 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         set({ isLoading: true, error: null });
         try {
             const { error } = await supabase.from('expenses').insert([expenseData]);
+            if (error) throw error;
+            await get().fetchTransactions(); // Refresh
+        } catch (error: any) {
+            set({ error: error.message, isLoading: false });
+            throw error;
+        }
+    },
+
+    addExpenses: async (expensesData) => {
+        set({ isLoading: true, error: null });
+        try {
+            const { error } = await supabase.from('expenses').insert(expensesData);
             if (error) throw error;
             await get().fetchTransactions(); // Refresh
         } catch (error: any) {

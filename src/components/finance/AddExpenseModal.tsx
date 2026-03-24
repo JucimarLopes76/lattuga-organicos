@@ -20,8 +20,10 @@ const EXPENSE_CATEGORIES = [
 const PAYMENT_METHODS = ['Pix', 'Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'Transferência', 'Boleto'];
 
 export function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProps) {
-    const addExpense = useFinanceStore((s) => s.addExpense);
+    const { addExpense, addExpenses } = useFinanceStore();
     const [isLoading, setIsLoading] = useState(false);
+    const [isInstallment, setIsInstallment] = useState(false);
+    const [installmentsCount, setInstallmentsCount] = useState(2);
 
     const [formData, setFormData] = useState({
         description: '',
@@ -41,19 +43,59 @@ export function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProps) {
         e.preventDefault();
         setIsLoading(true);
         try {
-            await addExpense({
-                description: formData.description,
-                amount: parseFloat(formData.amount),
-                category: formData.category,
-                supplier: formData.supplier || null,
-                due_date: formData.due_date,
-                payment_date: formData.payment_date || null,
-                payment_method: formData.payment_method || null,
-                proof_url: formData.proof_url || null,
-                status: formData.status
+            if (isInstallment) {
+                const count = Math.max(2, installmentsCount);
+                const totalAmount = parseFloat(formData.amount);
+                const baseAmount = Math.floor((totalAmount / count) * 100) / 100;
+                const remainingAmount = totalAmount - (baseAmount * count);
+                
+                const expensesData = [];
+                for (let i = 0; i < count; i++) {
+                    const date = new Date(formData.due_date);
+                    // Handle timezones correctly to avoid day shift
+                    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+                    const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+                    adjustedDate.setMonth(adjustedDate.getMonth() + i);
+                    const formattedDate = adjustedDate.toISOString().split('T')[0];
+                    
+                    const isLast = i === count - 1;
+                    const amount = isLast ? Number((baseAmount + remainingAmount).toFixed(2)) : baseAmount;
+                    
+                    expensesData.push({
+                        description: `${formData.description} (${i + 1}/${count})`,
+                        amount,
+                        category: formData.category,
+                        supplier: formData.supplier || null,
+                        due_date: formattedDate,
+                        payment_date: i === 0 ? (formData.payment_date || null) : null,
+                        payment_method: i === 0 ? (formData.payment_method || null) : null,
+                        proof_url: formData.proof_url || null,
+                        status: i === 0 ? formData.status : 'pending' as const
+                    });
+                }
+                await addExpenses(expensesData);
+            } else {
+                await addExpense({
+                    description: formData.description,
+                    amount: parseFloat(formData.amount),
+                    category: formData.category,
+                    supplier: formData.supplier || null,
+                    due_date: formData.due_date,
+                    payment_date: formData.payment_date || null,
+                    payment_method: formData.payment_method || null,
+                    proof_url: formData.proof_url || null,
+                    status: formData.status
+                });
+            }
+            // Reset form
+            setFormData({
+                description: '', amount: '', category: 'Fornecedores', supplier: '',
+                due_date: new Date().toISOString().split('T')[0], payment_date: '',
+                payment_method: '', proof_url: '', status: 'pending'
             });
+            setIsInstallment(false);
+            setInstallmentsCount(2);
             onClose();
-            // Reset form?
         } catch (error: any) {
             console.error(error);
             alert(`Erro ao salvar despesa: ${error.message || 'Erro desconhecido'}`);
@@ -76,6 +118,23 @@ export function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProps) {
                 {/* Body */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Installment Toggle */}
+                        <div className="md:col-span-2 flex items-center justify-between bg-gray-50 p-4 rounded-xl border border-gray-100 mb-2">
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-800">Despesa Parcelada</h3>
+                                <p className="text-xs text-gray-500">Criar lançamentos automáticos mês a mês</p>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    className="sr-only peer" 
+                                    checked={isInstallment}
+                                    onChange={(e) => setIsInstallment(e.target.checked)}
+                                />
+                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-500"></div>
+                            </label>
+                        </div>
+
                         {/* Description */}
                         <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Descrição *</label>
@@ -91,7 +150,9 @@ export function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProps) {
 
                         {/* Amount */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$) *</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                {isInstallment ? 'Valor Total (R$) *' : 'Valor (R$) *'}
+                            </label>
                             <input
                                 required
                                 type="number"
@@ -103,6 +164,22 @@ export function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProps) {
                                 placeholder="0,00"
                             />
                         </div>
+
+                        {/* Installments Count */}
+                        {isInstallment && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Número de Parcelas *</label>
+                                <input
+                                    required
+                                    type="number"
+                                    min="2"
+                                    max="120"
+                                    value={installmentsCount}
+                                    onChange={e => setInstallmentsCount(parseInt(e.target.value) || 2)}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                                />
+                            </div>
+                        )}
 
                         {/* Category */}
                         <div>
