@@ -11,7 +11,7 @@ interface AddExpenseModalProps {
 }
 
 const EXPENSE_CATEGORIES = [
-    'Fornecedores', 'Aluguel', 'Energia Elétrica', 'Água', 'Internet/Telefone',
+    'Fornecedores de Produtos', 'Aluguel', 'Energia Elétrica', 'Água', 'Internet/Telefone',
     'Salários', 'Manutenção', 'Embalagens', 'Marketing', 'Impostos',
     'Transportes/Combustível', 'Equipamentos', 'Limpeza', 'Contador',
     'Tarifas Bancárias', 'Pró-labore', 'Software/Sistemas', 'Outros'
@@ -28,7 +28,7 @@ export function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProps) {
     const [formData, setFormData] = useState({
         description: '',
         amount: '',
-        category: 'Fornecedores',
+        category: 'Fornecedores de Produtos',
         supplier: '',
         due_date: new Date().toISOString().split('T')[0],
         payment_date: '',
@@ -89,7 +89,7 @@ export function AddExpenseModal({ isOpen, onClose }: AddExpenseModalProps) {
             }
             // Reset form
             setFormData({
-                description: '', amount: '', category: 'Fornecedores', supplier: '',
+                description: '', amount: '', category: 'Fornecedores de Produtos', supplier: '',
                 due_date: new Date().toISOString().split('T')[0], payment_date: '',
                 payment_method: '', proof_url: '', status: 'pending'
             });
