@@ -48,9 +48,12 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
         set({ isLoading: true, error: null });
         try {
             // 1. Insert history records
+            const batchId = crypto.randomUUID();
+            const purchasesWithBatch = purchases.map(p => ({ ...p, batch_id: batchId }));
+
             const { error: purchaseError } = await supabase
                 .from('product_purchases')
-                .insert(purchases);
+                .insert(purchasesWithBatch);
 
             if (purchaseError) throw purchaseError;
 
@@ -80,6 +83,8 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
                 const { useFinanceStore } = await import('./financeStore');
                 const financeStore = useFinanceStore.getState();
                 
+                const baseExpenseData = { ...expenseData, purchase_batch_id: batchId };
+                
                 if (isInstallment && installmentsCount > 1) {
                     const totalAmount = expenseData.amount;
                     const count = Math.max(2, installmentsCount);
@@ -98,18 +103,18 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
                         const amount = isLast ? Number((baseAmount + remainingAmount).toFixed(2)) : baseAmount;
                         
                         expensesArr.push({
-                            ...expenseData,
-                            description: `${expenseData.description} (${i + 1}/${count})`,
+                            ...baseExpenseData,
+                            description: `${baseExpenseData.description} (${i + 1}/${count})`,
                             amount,
                             due_date: formattedDate,
-                            payment_date: i === 0 ? expenseData.payment_date : null,
-                            payment_method: i === 0 ? expenseData.payment_method : null,
-                            status: i === 0 ? expenseData.status : 'pending' as const
+                            payment_date: i === 0 ? baseExpenseData.payment_date : null,
+                            payment_method: i === 0 ? baseExpenseData.payment_method : null,
+                            status: i === 0 ? baseExpenseData.status : 'pending' as const
                         });
                     }
                     await financeStore.addExpenses(expensesArr);
                 } else {
-                    await financeStore.addExpense(expenseData);
+                    await financeStore.addExpense(baseExpenseData);
                 }
             }
 

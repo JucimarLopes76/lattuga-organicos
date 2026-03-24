@@ -38,7 +38,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
             // 1. Fetch Completed Orders (Revenue)
             let queryOrders = supabase
                 .from('orders')
-                .select('*, items:order_items(product:products(name))') // customized join if needed
+                .select('*, items:order_items(quantity, unit_price, product:products(name))')
                 .in('status', ['completed', 'cancelled'])
                 .order('created_at', { ascending: false });
 

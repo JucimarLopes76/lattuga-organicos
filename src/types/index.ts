@@ -25,10 +25,13 @@ export interface Product {
 export interface ProductPurchase {
     id: string;
     product_id: string;
+    batch_id: string | null;
     supplier: string;
     quantity: number;
     unit_cost: number;
     created_at: string;
+    // Joined
+    product?: Product;
 }
 
 export interface Customer {
@@ -118,6 +121,7 @@ export interface Expense {
     payment_method: string | null;
     proof_url: string | null;
     status: ExpenseStatus;
+    purchase_batch_id: string | null;
     created_at: string;
 }
 

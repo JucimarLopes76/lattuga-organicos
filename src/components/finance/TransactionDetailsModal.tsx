@@ -1,6 +1,8 @@
 
-import { X, Receipt, Calendar, User, DollarSign, Package } from 'lucide-react';
-import type { FinancialTransaction, Order, Expense } from '@/types';
+import { useState, useEffect } from 'react';
+import { X, Receipt, Calendar, User, DollarSign, Package, ShoppingCart } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import type { FinancialTransaction, Order, Expense, ProductPurchase } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
@@ -16,6 +18,34 @@ export function TransactionDetailsModal({ isOpen, onClose, transaction }: Transa
     const isRevenue = transaction.type === 'revenue';
     const order = isRevenue ? (transaction.original as Order) : null;
     const expense = !isRevenue ? (transaction.original as Expense) : null;
+
+    const [purchases, setPurchases] = useState<ProductPurchase[]>([]);
+    const [isLoadingPurchases, setIsLoadingPurchases] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen || isRevenue || !expense?.purchase_batch_id) {
+            setPurchases([]);
+            return;
+        }
+
+        async function fetchBatchPurchases() {
+            setIsLoadingPurchases(true);
+            try {
+                const { data } = await supabase
+                    .from('product_purchases')
+                    .select('*, product:products(name)')
+                    .eq('batch_id', expense!.purchase_batch_id);
+                
+                if (data) setPurchases(data);
+            } catch (err) {
+                console.error('Error fetching batch purchases:', err);
+            } finally {
+                setIsLoadingPurchases(false);
+            }
+        }
+        
+        fetchBatchPurchases();
+    }, [isOpen, isRevenue, expense?.purchase_batch_id]);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
@@ -162,6 +192,59 @@ export function TransactionDetailsModal({ isOpen, onClose, transaction }: Transa
                                     </div>
                                 )}
                             </div>
+
+                            {/* Linked Purchases */}
+                            {expense.purchase_batch_id && (
+                                <div>
+                                    <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                        <ShoppingCart size={18} /> Produtos Comprados
+                                    </h3>
+                                    
+                                    {isLoadingPurchases ? (
+                                        <div className="p-4 text-center text-sm text-gray-500 bg-gray-50 rounded-xl">
+                                            Carregando produtos vinculados...
+                                        </div>
+                                    ) : purchases.length > 0 ? (
+                                        <div className="border border-gray-100 rounded-xl overflow-hidden">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-gray-50">
+                                                    <tr>
+                                                        <th className="px-4 py-2 text-left font-medium text-gray-600">Produto</th>
+                                                        <th className="px-4 py-2 text-right font-medium text-gray-600">Qtd</th>
+                                                        <th className="px-4 py-2 text-right font-medium text-gray-600">Custo Un.</th>
+                                                        <th className="px-4 py-2 text-right font-medium text-gray-600">Total</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-100">
+                                                    {purchases.map((item) => (
+                                                        <tr key={item.id}>
+                                                            <td className="px-4 py-3 text-gray-900">{item.product?.name || 'Produto indisponível'}</td>
+                                                            <td className="px-4 py-3 text-right text-gray-600">{item.quantity}</td>
+                                                            <td className="px-4 py-3 text-right text-gray-600">{formatCurrency(item.unit_cost)}</td>
+                                                            <td className="px-4 py-3 text-right font-medium text-gray-900">
+                                                                {formatCurrency(item.quantity * item.unit_cost)}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                                <tfoot className="bg-gray-50 font-bold">
+                                                    <tr>
+                                                        <td colSpan={3} className="px-4 py-3 text-right text-gray-900">Total Desse Lote</td>
+                                                        <td className="px-4 py-3 text-right text-red-600">
+                                                            {formatCurrency(purchases.reduce((acc, curr) => acc + (curr.quantity * curr.unit_cost), 0))}
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 text-center text-sm text-gray-500 bg-gray-50 rounded-xl">
+                                            Nenhum produto encontrado neste lote.
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                         </div>
                     )}
                 </div>
