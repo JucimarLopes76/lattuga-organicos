@@ -402,16 +402,16 @@ export function RegisterPurchaseModal({ isOpen, onClose }: RegisterPurchaseModal
 
                 {/* Footer */}
                 <div className="flex justify-between items-center px-6 py-4 border-t border-gray-100 bg-gray-50/50 shrink-0">
-                    <Button variant="outline" type="button" onClick={() => step === 2 ? setStep(1) : onClose()} disabled={isLoading}>
+                    <Button key={step === 2 ? "btn-voltar" : "btn-cancelar"} variant="outline" type="button" onClick={() => step === 2 ? setStep(1) : onClose()} disabled={isLoading}>
                         {step === 2 ? 'Voltar' : 'Cancelar'}
                     </Button>
                     
                     {step === 1 ? (
-                        <Button type="button" onClick={handleNextStep}>
+                        <Button key="btn-avancar" type="button" onClick={handleNextStep}>
                             Avançar <ArrowRight size={18} className="ml-2" />
                         </Button>
                     ) : (
-                        <Button form="finance-form" type="submit" disabled={isLoading}>
+                        <Button key="btn-finalizar" form="finance-form" type="submit" disabled={isLoading}>
                             {isLoading ? 'Salvando...' : <><Save size={18} className="mr-2" /> Finalizar Despesa</>}
                         </Button>
                     )}
