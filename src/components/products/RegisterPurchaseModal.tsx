@@ -137,7 +137,7 @@ export function RegisterPurchaseModal({ isOpen, onClose }: RegisterPurchaseModal
                             {step === 1 ? '1. Produtos e Fornecedor' : '2. Dados Financeiros'}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                    <button type="button" onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
                         <X size={20} />
                     </button>
                 </div>
