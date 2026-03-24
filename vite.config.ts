@@ -13,7 +13,7 @@ export default defineConfig({
             srcDir: 'src',
             filename: 'sw.ts',
             registerType: 'autoUpdate',
-            includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+            includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'admin-manifest.json'],
             manifest: {
                 name: 'Lattuga Orgânicos',
                 short_name: 'Lattuga',
