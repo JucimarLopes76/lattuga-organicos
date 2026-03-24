@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 import type { ProductPurchase, Expense } from '@/types';
-import { useProductsStore } from './productsStore';
-import { useFinanceStore } from './financeStore';
 
 interface PurchasesState {
     productPurchases: Record<string, ProductPurchase[]>;
@@ -57,6 +55,7 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
             if (purchaseError) throw purchaseError;
 
             // 2. Update Products stock and cost price
+            const { useProductsStore } = await import('./productsStore');
             const productsStore = useProductsStore.getState();
             
             // Collect updates
@@ -78,6 +77,7 @@ export const usePurchasesStore = create<PurchasesState>((set, get) => ({
 
             // 3. Register Expense(s) via FinanceStore
             if (expenseData) {
+                const { useFinanceStore } = await import('./financeStore');
                 const financeStore = useFinanceStore.getState();
                 
                 if (isInstallment && installmentsCount > 1) {
