@@ -12,6 +12,7 @@ interface ProductsState {
     updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
     createProduct: (product: Omit<Product, 'id' | 'internal_code' | 'created_at' | 'updated_at'>) => Promise<void>;
     deleteProduct: (id: string) => Promise<void>;
+    seedMockProducts: () => Promise<void>;
 }
 
 function extractCategories(products: Product[]): string[] {
@@ -160,6 +161,77 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         if (error) {
             console.error('Error deleting product:', error);
             get().fetchProducts();
+        }
+    },
+
+    seedMockProducts: async () => {
+        set({ isLoading: true });
+        try {
+            const dummyProducts = [
+                {
+                    internal_code: '0001',
+                    name: 'Tomate Cereja Orgânico 500g',
+                    description: 'Tomates cereja frescos e orgânicos colhidos na fazenda.',
+                    price: 15.90,
+                    cost_price: 8.50,
+                    category: 'Legumes',
+                    stock_qty: 0,
+                    is_active: true,
+                    show_in_catalog: true,
+                },
+                {
+                    internal_code: '0002',
+                    name: 'Alface Crespa Orgânica',
+                    description: 'Maco de alface crespa sem agrotóxicos.',
+                    price: 4.50,
+                    cost_price: 2.00,
+                    category: 'Verduras',
+                    stock_qty: 0,
+                    is_active: true,
+                    show_in_catalog: true,
+                },
+                {
+                    internal_code: '0003',
+                    name: 'Cenoura Orgânica 1kg',
+                    description: 'Cenouras selecionadas de alta qualidade.',
+                    price: 9.80,
+                    cost_price: 5.00,
+                    category: 'Legumes',
+                    stock_qty: 0,
+                    is_active: true,
+                    show_in_catalog: true,
+                },
+                {
+                    internal_code: '0004',
+                    name: 'Banana Prata Orgânica Penca',
+                    description: 'Penca de bananas colhidas no ponto perfeito.',
+                    price: 12.00,
+                    cost_price: 6.50,
+                    category: 'Frutas',
+                    stock_qty: 0,
+                    is_active: true,
+                    show_in_catalog: true,
+                },
+                {
+                    internal_code: '0005',
+                    name: 'Morango Orgânico Bandeja 250g',
+                    description: 'Morangos doces e suculentos.',
+                    price: 18.50,
+                    cost_price: 10.00,
+                    category: 'Frutas',
+                    stock_qty: 0,
+                    is_active: true,
+                    show_in_catalog: true,
+                }
+            ];
+
+            const { error } = await supabase.from('products').insert(dummyProducts);
+            if (error) throw error;
+            
+            await get().fetchProducts();
+        } catch (err: any) {
+            console.error('Failed to seed products:', err.message);
+            set({ isLoading: false });
         }
     },
 }));

@@ -30,6 +30,7 @@ export default function Products() {
         updateProduct,
         createProduct,
         deleteProduct,
+        seedMockProducts,
     } = useProductsStore();
     
     // Purchases Store
@@ -185,6 +186,20 @@ export default function Products() {
                     >
                         Atualizar
                     </Button>
+                    {products.length === 0 && (
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                                if (confirm('Isso vai gerar 5 produtos de teste automaticamente. Confirmar?')) {
+                                    seedMockProducts();
+                                }
+                            }}
+                            leftIcon={<Wand2 size={16} />}
+                        >
+                            Gerar Produtos de Teste
+                        </Button>
+                    )}
                     <Button variant="outline" onClick={() => setShowPurchaseModal(true)} leftIcon={<Package size={18} />}>
                         Registrar Compra
                     </Button>
