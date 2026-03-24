@@ -42,8 +42,6 @@ export function RegisterPurchaseModal({ isOpen, onClose }: RegisterPurchaseModal
         status: 'pending' as 'pending' | 'paid'
     });
 
-    if (!isOpen) return null;
-
     const totalAmount = useMemo(() => {
         return items.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0);
     }, [items]);
@@ -125,6 +123,8 @@ export function RegisterPurchaseModal({ isOpen, onClose }: RegisterPurchaseModal
     const filteredProducts = searchPrompt.length > 2 
         ? products.filter(p => p.name.toLowerCase().includes(searchPrompt.toLowerCase())).slice(0, 5)
         : [];
+
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
