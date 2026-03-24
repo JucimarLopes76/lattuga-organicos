@@ -18,6 +18,17 @@ export interface Product {
     feature_badge: 'none' | 'highlight' | 'offer';
     created_at: string;
     updated_at: string;
+    // Joined
+    purchases?: ProductPurchase[];
+}
+
+export interface ProductPurchase {
+    id: string;
+    product_id: string;
+    supplier: string;
+    quantity: number;
+    unit_cost: number;
+    created_at: string;
 }
 
 export interface Customer {

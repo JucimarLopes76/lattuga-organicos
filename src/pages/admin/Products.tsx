@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Select } from '@/components/ui/Input';
+import { RegisterPurchaseModal } from '@/components/products/RegisterPurchaseModal';
+import { usePurchasesStore } from '@/stores/purchasesStore';
 import type { Product } from '@/types';
 
 export default function Products() {
@@ -29,8 +31,13 @@ export default function Products() {
         createProduct,
         deleteProduct,
     } = useProductsStore();
+    
+    // Purchases Store
+    const { productPurchases, fetchProductHistory, isLoading: isLoadingHistory } = usePurchasesStore();
+
     const [search, setSearch] = useState('');
     const [showModal, setShowModal] = useState(false);
+    const [showPurchaseModal, setShowPurchaseModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
     // Form state
@@ -80,6 +87,7 @@ export default function Products() {
 
     const openEdit = (p: Product) => {
         setEditingProduct(p);
+        fetchProductHistory(p.id);
         setFormName(p.name);
         setFormDescription(p.description || '');
         setFormPrice(p.price.toString());
@@ -176,6 +184,9 @@ export default function Products() {
                         onClick={() => fetchProducts()}
                     >
                         Atualizar
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowPurchaseModal(true)} leftIcon={<Package size={18} />}>
+                        Registrar Compra
                     </Button>
                     <Button onClick={openAdd} leftIcon={<Plus size={18} />}>
                         Novo Produto
@@ -538,6 +549,52 @@ export default function Products() {
                         </span>
                     </label>
 
+                    {/* Histórico de Aquisições (Only on Edit) */}
+                    {editingProduct && (
+                        <div className="pt-4 border-t border-gray-100">
+                            <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                                <Package size={16} className="text-gray-400" />
+                                Histórico de Aquisições (Compras)
+                            </h3>
+                            <div className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                                {isLoadingHistory ? (
+                                    <div className="p-4 text-center text-sm text-gray-500">Carregando histórico...</div>
+                                ) : (productPurchases[editingProduct.id] || []).length === 0 ? (
+                                    <div className="p-4 text-center text-sm text-gray-500">Nenhuma compra registrada.</div>
+                                ) : (
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-gray-100 border-b border-gray-200 text-gray-600">
+                                            <tr>
+                                                <th className="px-3 py-2 font-medium">Data</th>
+                                                <th className="px-3 py-2 font-medium">Fornecedor</th>
+                                                <th className="px-3 py-2 font-medium text-center">Qtd</th>
+                                                <th className="px-3 py-2 font-medium text-right">Custo Un.</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200">
+                                            {(productPurchases[editingProduct.id] || []).map(history => (
+                                                <tr key={history.id} className="hover:bg-gray-100/50">
+                                                    <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                                        {new Date(history.created_at).toLocaleDateString('pt-BR')}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-gray-900 truncate max-w-[120px]" title={history.supplier}>
+                                                        {history.supplier}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-gray-900 text-center font-medium">
+                                                        {history.quantity}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-gray-900 text-right font-medium">
+                                                        {formatCurrency(history.unit_cost)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="flex gap-3 pt-2">
                         <Button
                             variant="ghost"
@@ -557,6 +614,11 @@ export default function Products() {
                     </div>
                 </div>
             </Modal>
+            
+            <RegisterPurchaseModal 
+                isOpen={showPurchaseModal} 
+                onClose={() => setShowPurchaseModal(false)} 
+            />
         </div>
     );
 }
