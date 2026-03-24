@@ -278,13 +278,14 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
         // Stock is deducted on 'completed' (POS) or 'accepted' (online)
         if (order.status === 'completed' || order.status === 'accepted') {
             await incrementStock(order.items);
-        }
 
-        // Refresh finance data if the store has been loaded
-        try {
-            useFinanceStore.getState().fetchTransactions();
-        } catch (_) {
-            // Finance store may not have been initialized yet
+            // Refresh finance data if the store has been loaded, since cancelling these
+            // affects the computed revenue.
+            try {
+                useFinanceStore.getState().fetchTransactions();
+            } catch (_) {
+                // Finance store may not have been initialized yet
+            }
         }
     },
 }));
