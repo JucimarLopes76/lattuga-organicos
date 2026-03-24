@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
-import { demoProducts, categories as defaultCategories } from '@/data/products';
+import { categories as defaultCategories } from '@/data/products';
 import type { Product } from '@/types';
 
 interface ProductsState {
@@ -34,12 +34,12 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
 
             if (error) {
                 console.error('Supabase products error:', error);
-                set({ products: demoProducts, categories: defaultCategories, isLoading: false, error: error.message });
+                set({ products: [], categories: defaultCategories, isLoading: false, error: error.message });
                 return;
             }
 
             if (!data || data.length === 0) {
-                set({ products: demoProducts, categories: defaultCategories, isLoading: false });
+                set({ products: [], categories: defaultCategories, isLoading: false });
                 return;
             }
 
@@ -64,7 +64,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
             set({ products, categories: extractCategories(products), isLoading: false });
         } catch (err: any) {
             console.error('Failed to fetch products:', err);
-            set({ products: demoProducts, categories: defaultCategories, isLoading: false, error: err.message });
+            set({ products: [], categories: defaultCategories, isLoading: false, error: err.message });
         }
     },
 
