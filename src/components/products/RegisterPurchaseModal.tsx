@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { X, Search, Plus, Trash2, ArrowRight, Save, Receipt } from 'lucide-react';
+import { X, Search, Plus, Trash2, ArrowRight, Save, Receipt, Package } from 'lucide-react';
 import { useProductsStore } from '@/stores/productsStore';
 import { usePurchasesStore } from '@/stores/purchasesStore';
 import { Button } from '@/components/ui/Button';
@@ -157,33 +157,63 @@ export function RegisterPurchaseModal({ isOpen, onClose }: RegisterPurchaseModal
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Buscar Produtos</label>
-                            <div className="relative">
+                        <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                            <label className="block text-sm font-medium text-gray-800 mb-2">Quais produtos deseja comprar?</label>
+                            
+                            <div className="relative mb-3">
                                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                 <input
                                     type="text"
                                     value={searchPrompt}
                                     onChange={e => setSearchPrompt(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
-                                    placeholder="Digite o nome do produto..."
+                                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none transition-all text-sm shadow-sm"
+                                    placeholder="Buscar produto para adicionar..."
                                 />
-                                
-                                {filteredProducts.length > 0 && (
-                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
-                                        {filteredProducts.map(p => (
+                            </div>
+
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 overflow-y-auto pr-1" style={{ maxHeight: '200px' }}>
+                                {products
+                                    .filter(p => !searchPrompt || p.name.toLowerCase().includes(searchPrompt.toLowerCase()))
+                                    .map(p => {
+                                        const isSelected = items.some(i => i.product_id === p.id);
+                                        return (
                                             <button
                                                 key={p.id}
                                                 type="button"
-                                                onClick={() => handleAddItem(p)}
-                                                className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between transition-colors border-b last:border-0 border-gray-100"
+                                                onClick={() => !isSelected && handleAddItem(p)}
+                                                disabled={isSelected}
+                                                className={cn(
+                                                    "flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left bg-white group",
+                                                    isSelected 
+                                                        ? "border-brand-200 bg-brand-50/50 opacity-60 cursor-not-allowed"
+                                                        : "border-gray-200 hover:border-brand-300 hover:bg-brand-50 hover:shadow-sm cursor-pointer"
+                                                )}
                                             >
-                                                <span className="text-sm font-medium text-gray-900">{p.name}</span>
-                                                <Plus size={16} className="text-brand-600" />
+                                                <div className="h-10 w-10 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0 relative group-hover:ring-2 ring-brand-500/30 transition-all">
+                                                    {p.image_url ? (
+                                                        <img src={p.image_url} alt="" className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                                            <Package size={16} />
+                                                        </div>
+                                                    )}
+                                                    {!isSelected && (
+                                                        <div className="absolute inset-0 bg-brand-500/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                            <Plus size={16} className="text-brand-700 scale-0 group-hover:scale-100 transition-transform" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className={cn("text-xs font-semibold truncate leading-tight mb-0.5", isSelected ? "text-brand-900" : "text-gray-800")}>
+                                                        {p.name}
+                                                    </p>
+                                                    <p className={cn("text-[10px] font-medium", isSelected ? "text-brand-600" : "text-gray-500")}>
+                                                        {isSelected ? 'Já adicionado' : `Custo: ${formatCurrency(p.cost_price || 0)}`}
+                                                    </p>
+                                                </div>
                                             </button>
-                                        ))}
-                                    </div>
-                                )}
+                                        );
+                                })}
                             </div>
                         </div>
 
