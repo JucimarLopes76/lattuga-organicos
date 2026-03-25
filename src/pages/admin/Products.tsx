@@ -19,6 +19,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { Modal } from '@/components/ui/Modal';
 import { Input, Select } from '@/components/ui/Input';
 import { RegisterPurchaseModal } from '@/components/products/RegisterPurchaseModal';
+import { ImportExcelModal } from '@/components/products/ImportExcelModal';
 import { usePurchasesStore } from '@/stores/purchasesStore';
 import type { Product } from '@/types';
 
@@ -39,6 +40,7 @@ export default function Products() {
     const [search, setSearch] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
     // Form state
@@ -202,6 +204,9 @@ export default function Products() {
                     )}
                     <Button variant="outline" onClick={() => setShowPurchaseModal(true)} leftIcon={<Package size={18} />}>
                         Registrar Compra
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowImportModal(true)} leftIcon={<Upload size={18} />} className="text-brand-700 bg-brand-50 border-brand-200 hover:bg-brand-100 hidden sm:flex">
+                        Importar Excel
                     </Button>
                     <Button onClick={openAdd} leftIcon={<Plus size={18} />}>
                         Novo Produto
@@ -633,6 +638,10 @@ export default function Products() {
             <RegisterPurchaseModal 
                 isOpen={showPurchaseModal} 
                 onClose={() => setShowPurchaseModal(false)} 
+            />
+            <ImportExcelModal
+                isOpen={showImportModal}
+                onClose={() => setShowImportModal(false)}
             />
         </div>
     );
