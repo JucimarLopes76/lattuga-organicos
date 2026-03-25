@@ -205,11 +205,8 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
             };
 
             set((state) => ({ orders: [newOrder, ...state.orders] }));
-
-            // 4. If status is 'completed' (POS), deduct stock immediately
-            if (orderData.status === 'completed') {
-                await decrementStock(items);
-            }
+            // 4. Deduct stock immediately for ALL orders
+            await decrementStock(items);
 
 
 
@@ -237,7 +234,6 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
         if (status === 'accepted') {
             const order = get().orders.find((o) => o.id === orderId);
             if (order) {
-                await decrementStock(order.items);
                 // Send WhatsApp confirmation to customer
                 sendOrderConfirmation(order).catch((err) =>
                     console.error('[WhatsApp] Failed to send confirmation:', err)
@@ -274,11 +270,10 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
             return;
         }
 
-        // Restore stock for items that had been deducted
-        // Stock is deducted on 'completed' (POS) or 'accepted' (online)
-        if (order.status === 'completed' || order.status === 'accepted') {
-            await incrementStock(order.items);
+        // Restore stock for items since they were deducted at order creation
+        await incrementStock(order.items);
 
+        if (order.status === 'completed' || order.status === 'accepted') {
             // Refresh finance data if the store has been loaded, since cancelling these
             // affects the computed revenue.
             try {
