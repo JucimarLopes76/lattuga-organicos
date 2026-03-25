@@ -81,7 +81,7 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                     const workbook = xlsx.read(arrayBuffer, { type: 'buffer' });
                     const sheetName = workbook.SheetNames[0];
                     const sheet = workbook.Sheets[sheetName];
-                    const jsonData = xlsx.utils.sheet_to_json(sheet);
+                    const jsonData = xlsx.utils.sheet_to_json(sheet) as any[];
                     
                     for (const row of jsonData) {
                         // Skip if it doesn't look like a product row
