@@ -56,6 +56,8 @@ export default function Products() {
     const [formFeatureBadge, setFormFeatureBadge] = useState<'none'|'highlight'|'offer'>('none');
     const [saving, setSaving] = useState(false);
     const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
+    const [formImageScenario, setFormImageScenario] = useState('');
+    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
     // Compute next internal code for new products
     const nextInternalCode = String(
@@ -85,6 +87,7 @@ export default function Products() {
         setFormShowCatalog(true);
         setFormSupplierCode('');
         setFormFeatureBadge('none');
+        setFormImageScenario('');
         setShowModal(true);
     };
 
@@ -101,6 +104,7 @@ export default function Products() {
         setFormShowCatalog(p.show_in_catalog);
         setFormSupplierCode(p.supplier_code || '');
         setFormFeatureBadge(p.feature_badge || 'none');
+        setFormImageScenario('');
         setShowModal(true);
     };
 
@@ -153,6 +157,33 @@ export default function Products() {
         } finally {
             setIsGeneratingDescription(false);
         }
+    };
+
+    const handleGenerateImage = () => {
+        if (!formName) {
+            alert('Por favor, preencha o nome do produto primeiro para gerar a imagem.');
+            return;
+        }
+        setIsGeneratingImage(true);
+        
+        // Convert the input to a prompt. Pollinations handles mixed languages very well.
+        const basePrompt = `A professional food photography of ${formName}`;
+        const contextPrompt = formImageScenario ? `, in a beautiful setting with ${formImageScenario}` : ', isolated on a clean aesthetic background';
+        const qualityPrompt = ', high quality, studio lighting, highly detailed, 8k resolution, photorealistic, appetizing, natural colors. No text, no words, no watermarks, no overlay, clean.';
+        
+        const fullPrompt = `${basePrompt}${contextPrompt}${qualityPrompt}`;
+        const encodedPrompt = encodeURIComponent(fullPrompt);
+        
+        // Add random seed to avoid caching the same image if the user clicks again to retry
+        const seed = Math.floor(Math.random() * 100000000);
+        const generatedUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${seed}`;
+        
+        // Pre-load the image so it shows up quickly when we set the URL, or just set it and let the browser load it
+        setFormImageUrl(generatedUrl);
+        
+        setTimeout(() => {
+            setIsGeneratingImage(false);
+        }, 500); // Small delay to show button feedback
     };
 
     const toggleCatalog = (p: Product) => {
@@ -541,13 +572,55 @@ export default function Products() {
                         ]}
                     />
                     </div>
-                    <Input
-                        label="URL da Imagem"
-                        value={formImageUrl}
-                        onChange={(e) => setFormImageUrl(e.target.value)}
-                        placeholder="https://..."
-                        icon={<Upload size={16} />}
-                    />
+                    <div className="space-y-3 p-4 bg-brand-50/50 rounded-xl border border-brand-100">
+                        <h4 className="text-sm font-bold text-brand-900 flex items-center gap-2 mb-2">
+                            <Wand2 size={16} className="text-brand-600" />
+                            Imagem do Produto
+                        </h4>
+                        
+                        <div className="flex gap-4 items-start">
+                            {formImageUrl ? (
+                                <div className="h-24 w-24 rounded-lg overflow-hidden shadow-sm border border-gray-200 bg-white flex-shrink-0">
+                                    <img src={formImageUrl} alt="Preview" className="h-full w-full object-cover" />
+                                </div>
+                            ) : (
+                                <div className="h-24 w-24 rounded-lg shadow-sm border border-dashed border-gray-300 bg-white flex items-center justify-center flex-shrink-0 text-gray-400">
+                                    <Package size={24} />
+                                </div>
+                            )}
+
+                            <div className="flex-1 space-y-3">
+                                <Input
+                                    label="URL da Imagem"
+                                    value={formImageUrl}
+                                    onChange={(e) => setFormImageUrl(e.target.value)}
+                                    placeholder="https://..."
+                                    icon={<Upload size={16} />}
+                                />
+                                <div>
+                                    <Input
+                                        label="Cenário para IA (Opcional)"
+                                        value={formImageScenario}
+                                        onChange={(e) => setFormImageScenario(e.target.value)}
+                                        placeholder="Ex: frutas em uma cesta, fundo claro..."
+                                    />
+                                    <div className="flex justify-end mt-2">
+                                        <Button
+                                            type="button"
+                                            onClick={handleGenerateImage}
+                                            disabled={!formName || isGeneratingImage}
+                                            variant="outline"
+                                            size="sm"
+                                            className="bg-white border-brand-200 text-brand-700 hover:bg-brand-50"
+                                            leftIcon={<Wand2 size={14} />}
+                                        >
+                                            {isGeneratingImage ? 'Gerando...' : 'Gerar Imagem com IA'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <label className="flex items-center gap-3 cursor-pointer">
                         <button
                             type="button"
