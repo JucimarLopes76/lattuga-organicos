@@ -16,7 +16,9 @@ interface ProductsState {
 }
 
 function extractCategories(products: Product[]): string[] {
-    return ['Todas', ...new Set(products.map((p) => p.category))];
+    const uniqueRaw = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+    const sorted = uniqueRaw.sort((a, b) => a.localeCompare(b));
+    return ['Todas', ...sorted];
 }
 
 export const useProductsStore = create<ProductsState>((set, get) => ({
