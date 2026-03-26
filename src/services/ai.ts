@@ -3,10 +3,10 @@ import { supabase } from '@/lib/supabase';
 // ─── API Keys ─────────────────────────────────────────────────────────────────
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const SILICONFLOW_API_KEY = import.meta.env.VITE_SILICONFLOW_API_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const SILICONFLOW_API_URL = 'https://api.siliconflow.com/v1/images/generations';
 
 // ─── Rate Limiting ───────────────────────────────────────────────────────────
 
@@ -153,7 +153,7 @@ Regras:
     }
 }
 
-// ─── Product Image Generation (SiliconFlow — FLUX1.1 Pro) ────────────────────
+// ─── Product Image Generation (via Supabase Edge Function → SiliconFlow) ─────
 
 export async function generateProductImage(
     productName: string,
@@ -161,8 +161,8 @@ export async function generateProductImage(
     scenario?: string
 ): Promise<string> {
 
-    if (!SILICONFLOW_API_KEY) {
-        throw new Error('Chave da API SiliconFlow não configurada. Adicione VITE_SILICONFLOW_API_KEY ao arquivo .env');
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        throw new Error('Variáveis VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não configuradas.');
     }
 
     // Verificação de rate limit
@@ -178,40 +178,38 @@ export async function generateProductImage(
     const prompt = `Professional e-commerce product photography of "${productName}", organic food product, ${scenarioText}. High resolution, sharp focus, natural vibrant colors, clean appetizing composition for premium organic food store catalog. Square format 1:1. No text, no watermarks, no logos, no artificial packaging, food only. Editorial magazine style, photorealistic.`;
 
     try {
-        const response = await fetch(SILICONFLOW_API_URL, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${SILICONFLOW_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: 'black-forest-labs/FLUX-1.1-pro',  // $0.04/img — qualidade profissional
-                prompt,
-                image_size: '1024x1024',
-                batch_size: 1                
-            })
-        });
+        // ── Chama a Edge Function (sem CORS, sem expor a API key) ──
+        const response = await fetch(
+            `${SUPABASE_URL}/functions/v1/generate-image`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ prompt, productName, category }),
+            }
+        );
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.message || `Erro SiliconFlow: ${response.status}`);
+            throw new Error(errorData.error || `Erro na Edge Function: ${response.status}`);
         }
 
         const data = await response.json();
-        const imageUrl = data.images?.[0]?.url;
+        const imageUrl = data.imageUrl;
 
         if (!imageUrl) {
-            throw new Error('SiliconFlow não retornou imagem. Verifique seu saldo de créditos.');
+            throw new Error('Edge Function não retornou imagem. Verifique o saldo SiliconFlow.');
         }
 
-        // Baixa a imagem gerada
+        // ── Baixa a imagem e sobe no Supabase Storage ──
         const imgResponse = await fetch(imageUrl);
         if (!imgResponse.ok) {
             throw new Error('Falha ao baixar imagem gerada.');
         }
         const blob = await imgResponse.blob();
 
-        // Gera nome de arquivo SEO-friendly e sobe no Supabase Storage
         const filePath = buildSeoFilename(productName, category);
 
         const { error: uploadError } = await supabase.storage
@@ -225,7 +223,7 @@ export async function generateProductImage(
             throw new Error(`Erro ao salvar imagem no Storage: ${uploadError.message}`);
         }
 
-        // Retorna URL pública do Supabase
+        // ── Retorna URL pública do Supabase Storage ──
         const { data: urlData } = supabase.storage
             .from('product-images')
             .getPublicUrl(filePath);
@@ -236,7 +234,7 @@ export async function generateProductImage(
         return urlData.publicUrl;
 
     } catch (error: any) {
-        console.error('Erro na geração de imagem SiliconFlow:', error);
+        console.error('Erro na geração de imagem:', error);
         throw error;
     }
 }
