@@ -3,9 +3,7 @@ import { supabase } from '@/lib/supabase';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-const HF_TOKEN = import.meta.env.VITE_HUGGINGFACE_ACCESS_TOKEN;
-// Usando SDXL-Turbo: mais leve, rápido e menos chance de timeout
-const HF_IMAGE_MODEL = 'stabilityai/sdxl-turbo'; 
+const POLLINATIONS_API_KEY = import.meta.env.VITE_POLLINATIONS_API_KEY;
 
 // ─── Rate Limiting ───────────────────────────────────────────────────────────
 
@@ -137,17 +135,14 @@ Regras:
     }
 }
 
-// ─── Product Image Generation (Hugging Face) ───────────────────────────
+// ─── Product Image Generation (Pollinations FLUX - CORS Friendly) ───────────
 
 export async function generateProductImage(
     productName: string,
     category: string,
     scenario?: string
 ): Promise<string> {
-    if (!HF_TOKEN) {
-        throw new Error('Token do Hugging Face não configurado localmente. Verifique se adicionou VITE_HUGGINGFACE_ACCESS_TOKEN ao arquivo .env e reiniciou o servidor.');
-    }
-
+    
     // Check rate limit
     const rateCheck = canGenerateImage();
     if (!rateCheck.allowed) {
@@ -156,57 +151,32 @@ export async function generateProductImage(
 
     const scenarioText = scenario
         ? `, in a professional studio setting with ${scenario}`
-        : ', professional food photography, isolated on a clean aesthetic background, studio lighting';
+        : ', professional food photography, isolated on a clean minimal aesthetic background, studio lighting';
 
+    // Prompt otimizado para o modelo FLUX (via Pollinations)
     const prompt = `Highest quality professional food photography of ${productName}${scenarioText}. 
-Exquisite detail, 8k resolution, photorealistic, appetizing, natural vibrant colors, clean minimal composition, editorial style.`;
+Highly detailed, 8k resolution, photorealistic, appetizing, natural colors, clean composition, editorial culinary style. 
+No text, no words, no watermarks, no logos, no packaging, realistic textures.`;
 
-    const negativePrompt = "text, words, logo, watermark, blurry, low quality, distorted, artificial, packaging, plastic bag, messy, lowres, text, error, cropped, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, out of frame, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck";
+    const encodedPrompt = encodeURIComponent(prompt);
+    const randomSeed = Math.floor(Math.random() * 10000000);
+    
+    // Usamos model=flux que é o melhor disponível no Pollinations atualmente
+    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${randomSeed}&model=flux&key=${POLLINATIONS_API_KEY || ''}`;
 
     try {
-        console.log('Solicitando imagem ao Hugging Face:', prompt);
+        console.log('Solicitando imagem premium (FLUX):', url);
         
-        const response = await fetch(
-            `https://api-inference.huggingface.co/models/${HF_IMAGE_MODEL}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${HF_TOKEN}`,
-                },
-                body: JSON.stringify({
-                    inputs: prompt,
-                    parameters: {
-                        negative_prompt: negativePrompt,
-                        num_inference_steps: 1, // Especifico para Turbo
-                        guidance_scale: 0.0,    // Especifico para Turbo
-                    },
-                    options: {
-                        wait_for_model: true,
-                        use_cache: false
-                    }
-                }),
-            }
-        );
-
+        // Buscamos a imagem
+        const response = await fetch(url);
+        
         if (!response.ok) {
-            let errorMessage = 'Erro desconhecido na API de imagem';
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.error || errorMessage;
-            } catch {
-                errorMessage = `Erro ${response.status}: ${response.statusText}`;
-            }
-            throw new Error(errorMessage);
+            throw new Error('Falha ao obter imagem da rede Pollinations. Tente novamente.');
         }
 
         const blob = await response.blob();
-        
-        // Verifica se o blob é mesmo uma imagem
         if (!blob.type.startsWith('image/')) {
-             const text = await blob.text();
-             console.error('Resposta inesperada (não é imagem):', text);
-             throw new Error('A API retornou um formato inválido. Tente novamente.');
+             throw new Error('A API não retornou uma imagem válida. Tente novamente.');
         }
 
         const mimeType = blob.type;
@@ -214,7 +184,7 @@ Exquisite detail, 8k resolution, photorealistic, appetizing, natural vibrant col
         // Generate SEO-friendly filename
         const filePath = buildSeoFilename(productName, category);
 
-        // Upload to Supabase Storage
+        // Upload to Supabase Storage (MANTENDO A LÓGICA DE STORAGE PARA SEO)
         const { error: uploadError } = await supabase.storage
             .from('product-images')
             .upload(filePath, blob, {
@@ -237,12 +207,6 @@ Exquisite detail, 8k resolution, photorealistic, appetizing, natural vibrant col
         return urlData.publicUrl;
     } catch (error: any) {
         console.error('Erro detalhado na geração de imagem:', error);
-        
-        // Se for erro de fetch, dar uma dica sobre CORS/Token
-        if (error.message === 'Failed to fetch') {
-            throw new Error('Falha na conexão com Hugging Face. Verifique se o Token é válido e se reiniciou o servidor local.');
-        }
-        
         throw error;
     }
 }
