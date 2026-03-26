@@ -11,7 +11,7 @@ import {
     RefreshCw,
     Wand2,
 } from 'lucide-react';
-import { generateProductDescription } from '@/services/ai';
+import { generateProductDescription, generateProductImage, canGenerateImage, getRemainingGenerations } from '@/services/ai';
 import { useProductsStore } from '@/stores/productsStore';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -159,56 +159,28 @@ export default function Products() {
         }
     };
 
-    const handleGenerateImage = () => {
+    const handleGenerateImage = async () => {
         if (!formName) {
             alert('Por favor, preencha o nome do produto primeiro para gerar a imagem.');
             return;
         }
-        setIsGeneratingImage(true);
-        
-        // Convert the input to a prompt. Pollinations handles mixed languages very well.
-        const basePrompt = `A professional food photography of ${formName}`;
-        const contextPrompt = formImageScenario ? `, in a beautiful setting with ${formImageScenario}` : ', isolated on a clean aesthetic background';
-        const qualityPrompt = ', high quality, studio lighting, highly detailed, 8k resolution, photorealistic, appetizing, natural colors. No text, no words, no watermarks, no overlay, clean.';
-        
-        const fullPrompt = `${basePrompt}${contextPrompt}${qualityPrompt}`;
-        const encodedPrompt = encodeURIComponent(fullPrompt);
-        
-        // Use Pollinations API with authenticated key - model=flux for text-to-image
-        const apiKey = import.meta.env.VITE_POLLINATIONS_API_KEY || '';
-        const seed = Math.floor(Math.random() * 100000000);
-        const generatedUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux&key=${apiKey}`;
-        
-        setFormImageUrl(generatedUrl);
-        
-        setTimeout(() => {
-            setIsGeneratingImage(false);
-        }, 500);
-    };
 
-    const handleRecreateImage = () => {
-        if (!formImageUrl) {
-            alert('Este produto não possui uma imagem para recriar.');
+        // Check rate limit before starting
+        const rateCheck = canGenerateImage();
+        if (!rateCheck.allowed) {
+            alert(rateCheck.reason);
             return;
         }
+
         setIsGeneratingImage(true);
-        
-        // Build a prompt that describes the desired transformation
-        const scenarioText = formImageScenario || 'a beautiful professional food photography setting';
-        const recreatePrompt = `Transform this product image into a professional food photography scene. Place the product in ${scenarioText}. Keep the product recognizable. Studio lighting, 8k, photorealistic, appetizing. No text, no words, no watermarks.`;
-        const encodedPrompt = encodeURIComponent(recreatePrompt);
-        const encodedImageUrl = encodeURIComponent(formImageUrl);
-        
-        // Use kontext model for image-to-image transformation
-        const apiKey = import.meta.env.VITE_POLLINATIONS_API_KEY || '';
-        const seed = Math.floor(Math.random() * 100000000);
-        const generatedUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${seed}&model=kontext&image=${encodedImageUrl}&key=${apiKey}`;
-        
-        setFormImageUrl(generatedUrl);
-        
-        setTimeout(() => {
+        try {
+            const imageUrl = await generateProductImage(formName, formCategory, formImageScenario || undefined);
+            setFormImageUrl(imageUrl);
+        } catch (error: any) {
+            alert(error.message || 'Erro ao gerar imagem com IA');
+        } finally {
             setIsGeneratingImage(false);
-        }, 500);
+        }
     };
 
     const toggleCatalog = (p: Product) => {
@@ -629,31 +601,21 @@ export default function Products() {
                                         onChange={(e) => setFormImageScenario(e.target.value)}
                                         placeholder="Ex: frutas em uma cesta, fundo claro..."
                                     />
-                                    <div className="flex justify-end gap-2 mt-2 flex-wrap">
+                                    <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+                                        <span className="text-xs text-gray-400">
+                                            {getRemainingGenerations()} gerações restantes hoje
+                                        </span>
                                         <Button
                                             type="button"
                                             onClick={handleGenerateImage}
-                                            disabled={!formName || isGeneratingImage}
+                                            disabled={!formName || isGeneratingImage || !canGenerateImage().allowed}
                                             variant="outline"
                                             size="sm"
                                             className="bg-white border-brand-200 text-brand-700 hover:bg-brand-50"
-                                            leftIcon={<Wand2 size={14} />}
+                                            leftIcon={isGeneratingImage ? <RefreshCw size={14} className="animate-spin" /> : <Wand2 size={14} />}
                                         >
-                                            {isGeneratingImage ? 'Gerando...' : 'Criar Imagem com IA'}
+                                            {isGeneratingImage ? 'Gerando imagem...' : 'Gerar Imagem com IA'}
                                         </Button>
-                                        {formImageUrl && !formImageUrl.includes('pollinations.ai') && (
-                                            <Button
-                                                type="button"
-                                                onClick={handleRecreateImage}
-                                                disabled={isGeneratingImage}
-                                                variant="outline"
-                                                size="sm"
-                                                className="bg-white border-purple-200 text-purple-700 hover:bg-purple-50"
-                                                leftIcon={<Wand2 size={14} />}
-                                            >
-                                                {isGeneratingImage ? 'Recriando...' : 'Recriar com Cenário'}
-                                            </Button>
-                                        )}
                                     </div>
                                 </div>
                             </div>
