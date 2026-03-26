@@ -174,12 +174,12 @@ export default function Products() {
         const fullPrompt = `${basePrompt}${contextPrompt}${qualityPrompt}`;
         const encodedPrompt = encodeURIComponent(fullPrompt);
         
-        // Add random seed to avoid caching and add size parameters if necessary
-        // Pollinations is now requiring an API key, shifting to api.airforce for free generation
+        // Use Pollinations API with authenticated key
+        const apiKey = import.meta.env.VITE_POLLINATIONS_API_KEY || '';
         const seed = Math.floor(Math.random() * 100000000);
-        const generatedUrl = `https://api.airforce/imagine2?prompt=${encodedPrompt}&seed=${seed}&size=1:1`;
+        const generatedUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux&key=${apiKey}`;
         
-        // Pre-load the image so it shows up quickly when we set the URL, or just set it and let the browser load it
+        // Pre-load the image so it shows up quickly when we set the URL
         setFormImageUrl(generatedUrl);
         
         setTimeout(() => {
