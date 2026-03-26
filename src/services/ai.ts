@@ -159,9 +159,9 @@ export async function generateProductImage(
 
     try {
         // CORREÇÃO: Endpoint do Imagen 3 via Predict
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'x-goog-api-key': ${GEMINI_API_KEY}, 'Content-Type': 'application/json',},
             body: JSON.stringify({
                 instances: [{ prompt: prompt }],
                 parameters: {
