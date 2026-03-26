@@ -185,7 +185,7 @@ export async function generateProductImage(
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'Pro/black-forest-labs/FLUX1.1-pro',  // $0.04/img — qualidade profissional
+                model: 'black-forest-labs/FLUX1.1-pro',  // $0.04/img — qualidade profissional
                 prompt,
                 image_size: '1024x1024',
                 batch_size: 1,
