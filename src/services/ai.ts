@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// ─── Rate Limiting ───────────────────────────────────────────────────────────
+// ─── Rate Limiting (MANTIDO) ───────────────────────────────────────────────────────────
 
 const RATE_LIMIT_KEY = 'lattuga_ai_img_gen';
 const MAX_PER_DAY = 30;
@@ -60,7 +60,7 @@ function recordGeneration(): void {
     saveRateLimitData(data);
 }
 
-// ─── SEO Helpers ─────────────────────────────────────────────────────────────
+// ─── SEO Helpers (MANTIDO) ─────────────────────────────────────────────────────────────
 
 function slugify(text: string): string {
     return text
@@ -76,10 +76,10 @@ function buildSeoFilename(productName: string, category: string): string {
     const catSlug = slugify(category);
     const nameSlug = slugify(productName);
     const timestamp = Date.now();
-    return `${catSlug}/${nameSlug}-organico-${timestamp}.webp`;
+    return `${catSlug}/${nameSlug}-organico-${timestamp}.jpeg`; // Alterado para .jpeg devido ao Imagen 3
 }
 
-// ─── Product Description Generation (Gemini 2.0 Flash) ────────────────────
+// ─── Product Description Generation (Gemini 2.0 Flash) (MANTIDO) ────────────────────
 
 export async function generateProductDescription(productName: string, category: string): Promise<string> {
     if (!GEMINI_API_KEY) {
@@ -133,7 +133,7 @@ Regras:
     }
 }
 
-// ─── Product Image Generation (Gemini 2.0 Flash - Unified) ────────────────
+// ─── Product Image Generation (Imagen 3 - Corrigido) ─────────────────────────
 
 export async function generateProductImage(
     productName: string,
@@ -141,62 +141,53 @@ export async function generateProductImage(
     scenario?: string
 ): Promise<string> {
     if (!GEMINI_API_KEY) {
-        throw new Error('Chave da API Gemini não configurada. Adicione VITE_GEMINI_API_KEY ao arquivo .env');
+        throw new Error('Chave da API não configurada. Adicione VITE_GEMINI_API_KEY ao arquivo .env');
     }
 
-    // Check rate limit
+    // Check rate limit (MANTIDO)
     const rateCheck = canGenerateImage();
     if (!rateCheck.allowed) {
         throw new Error(rateCheck.reason);
     }
 
+    // Estruturação do prompt otimizada para Imagen 3 (inglês para melhor resultado fotográfico)
     const scenarioText = scenario
         ? `, in a professional studio setting with ${scenario}`
         : ', professional food photography, isolated on a clean minimal aesthetic background, studio lighting';
 
-    const prompt = `Gere uma fotografia profissional para e-commerce do produto alimentício "${productName}"${scenarioText}.
-
-Requisitos técnicos:
-- Fotografia profissional de estúdio com iluminação natural suave
-- Resolução alta, foco nítido, cores naturais e vibrantes
-- Composição clean e apetitosa para catálogo de loja de orgânicos
-- Proporção 1:1 (quadrada)
-- SEM texto, SEM palavras, SEM marcas d'água, SEM logos
-- SEM embalagens artificiais, apenas o alimento em si
-- Estilo editorial de revista gastronômica`;
+    const prompt = `Professional high-resolution e-commerce photography of ${productName} (organic food). ${scenarioText}. Sharp focus, vibrant natural colors, appetizing composition. 1:1 square aspect ratio. Absolutely no text, no watermarks, no logos, no artificial packaging, purely the natural food item. Editorial gastronomy magazine style.`;
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        // CORREÇÃO: Endpoint do Imagen 3 via Predict
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: prompt }]
-                }],
-                generationConfig: {
-                    responseModalities: ['TEXT', 'IMAGE']
+                instances: [{ prompt: prompt }],
+                parameters: {
+                    sampleCount: 1,
+                    aspectRatio: "1:1",
+                    outputOptions: { mimeType: "image/jpeg" }
                 }
             })
         });
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error?.message || 'Falha ao gerar imagem com Gemini');
+            throw new Error(errorData.error?.message || 'Falha ao gerar imagem com Imagen 3. Verifique sua cota.');
         }
 
         const data = await response.json();
 
-        // Find the image part in the response
-        const parts = data.candidates?.[0]?.content?.parts || [];
-        const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
+        // CORREÇÃO: Extração do base64 específica do Imagen 3
+        const base64 = data.predictions?.[0]?.bytesBase64Encoded;
 
-        if (!imagePart?.inlineData?.data) {
-            throw new Error('A IA não retornou uma imagem. Verifique sua cota diária do Imagen 3 no Google AI Studio.');
+        if (!base64) {
+            throw new Error('A IA não retornou uma imagem.');
         }
 
-        // Convert base64 to blob
-        const base64 = imagePart.inlineData.data;
-        const mimeType = imagePart.inlineData.mimeType || 'image/webp';
+        // Conversão base64 to blob (MANTIDO, ajustado tipo)
+        const mimeType = 'image/jpeg';
         const byteChars = atob(base64);
         const byteNumbers = new Array(byteChars.length);
         for (let i = 0; i < byteChars.length; i++) {
@@ -205,10 +196,10 @@ Requisitos técnicos:
         const byteArray = new Uint8Array(byteNumbers);
         const blob = new Blob([byteArray], { type: mimeType });
 
-        // Generate SEO-friendly filename
+        // Generate SEO-friendly filename (MANTIDO)
         const filePath = buildSeoFilename(productName, category);
 
-        // Upload to Supabase Storage
+        // Upload to Supabase Storage (MANTIDO)
         const { error: uploadError } = await supabase.storage
             .from('product-images')
             .upload(filePath, blob, {
@@ -220,12 +211,12 @@ Requisitos técnicos:
             throw new Error(`Erro ao salvar imagem no Storage: ${uploadError.message}`);
         }
 
-        // Get public URL
+        // Get public URL (MANTIDO)
         const { data: urlData } = supabase.storage
             .from('product-images')
             .getPublicUrl(filePath);
 
-        // Record the generation for rate limiting
+        // Record the generation for rate limiting (MANTIDO)
         recordGeneration();
 
         return urlData.publicUrl;
