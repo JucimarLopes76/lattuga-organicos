@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 // ─── API Keys ─────────────────────────────────────────────────────────────────
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const SILICONFLOW_API_KEY = import.meta.env.VITE_SILICONFLOW_API_KEY;
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // ─── Rate Limiting ───────────────────────────────────────────────────────────
@@ -139,13 +140,17 @@ Regras:
     }
 }
 
-// ─── Product Image Generation (Vercel API Route → SiliconFlow) ───────────────
+// ─── Product Image Generation (SiliconFlow — direto) ─────────────────────────
 
 export async function generateProductImage(
     productName: string,
     category: string,
     scenario?: string
 ): Promise<string> {
+
+    if (!SILICONFLOW_API_KEY) {
+        throw new Error('Chave VITE_SILICONFLOW_API_KEY não configurada na Vercel.');
+    }
 
     const rateCheck = canGenerateImage();
     if (!rateCheck.allowed) {
@@ -159,23 +164,30 @@ export async function generateProductImage(
     const prompt = `Professional e-commerce product photography of "${productName}", organic food product, ${scenarioText}. High resolution, sharp focus, natural vibrant colors, clean appetizing composition for premium organic food store catalog. Square format 1:1. No text, no watermarks, no logos, no artificial packaging, food only. Editorial magazine style, photorealistic.`;
 
     try {
-        // Chama a Vercel API Route — same-origin, sem CORS, sem expor a chave
-        const response = await fetch('/api/generate-image', {
+        const response = await fetch('https://api.siliconflow.com/v1/images/generations', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt }),
+            headers: {
+                'Authorization': `Bearer ${SILICONFLOW_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: 'black-forest-labs/FLUX-1.1-pro',
+                prompt,
+                image_size: '1024x1024',
+                batch_size: 1,
+            }),
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Erro ao gerar imagem: ${response.status}`);
+            throw new Error(errorData.message || `Erro SiliconFlow: ${response.status}`);
         }
 
         const data = await response.json();
-        const imageUrl = data.imageUrl;
+        const imageUrl = data.images?.[0]?.url;
 
         if (!imageUrl) {
-            throw new Error('Nenhuma imagem retornada. Verifique o saldo SiliconFlow.');
+            throw new Error('SiliconFlow não retornou imagem. Verifique seu saldo.');
         }
 
         // Baixa e sobe no Supabase Storage
