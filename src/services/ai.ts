@@ -180,7 +180,7 @@ export async function generateProductImage(
     try {
         // ── Chama a Edge Function (sem CORS, sem expor a API key) ──
         const response = await fetch(
-            `${SUPABASE_URL}/functions/v1/generate-image`,
+            `${SUPABASE_URL}/functions/v1/quick-action`,
             {
                 method: 'POST',
                 headers: {
