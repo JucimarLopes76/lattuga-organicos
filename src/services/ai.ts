@@ -3,6 +3,9 @@ import { supabase } from '@/lib/supabase';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
+const HF_TOKEN = import.meta.env.VITE_HUGGINGFACE_ACCESS_TOKEN;
+const HF_IMAGE_MODEL = 'stabilityai/stable-diffusion-xl-base-1.0';
+
 // ─── Rate Limiting ───────────────────────────────────────────────────────────
 
 const RATE_LIMIT_KEY = 'lattuga_ai_img_gen';
@@ -79,7 +82,7 @@ function buildSeoFilename(productName: string, category: string): string {
     return `${catSlug}/${nameSlug}-organico-${timestamp}.webp`;
 }
 
-// ─── Product Description Generation ─────────────────────────────────────────
+// ─── Product Description Generation (Gemini) ────────────────────────────────
 
 export async function generateProductDescription(productName: string, category: string): Promise<string> {
     if (!GEMINI_API_KEY) {
@@ -133,15 +136,15 @@ Regras:
     }
 }
 
-// ─── Product Image Generation ───────────────────────────────────────────────
+// ─── Product Image Generation (Hugging Face SDXL) ───────────────────────────
 
 export async function generateProductImage(
     productName: string,
     category: string,
     scenario?: string
 ): Promise<string> {
-    if (!GEMINI_API_KEY) {
-        throw new Error('Chave da API Gemini não configurada. Adicione VITE_GEMINI_API_KEY ao arquivo .env');
+    if (!HF_TOKEN) {
+        throw new Error('Token do Hugging Face não configurado. Adicione VITE_HUGGINGFACE_ACCESS_TOKEN ao arquivo .env');
     }
 
     // Check rate limit
@@ -151,59 +154,44 @@ export async function generateProductImage(
     }
 
     const scenarioText = scenario
-        ? `, em um cenário com ${scenario}`
-        : ', isolado em fundo limpo e elegante';
+        ? `, in a beautiful professional setting with ${scenario}`
+        : ', professional food photography, isolated on a clean aesthetic background, studio lighting';
 
-    const prompt = `Gere uma fotografia profissional para e-commerce do produto alimentício "${productName}"${scenarioText}.
+    // O prompt para SDXL funciona melhor em inglês para termos técnicos de fotografia
+    const prompt = `Professional high-end food photography of ${productName}${scenarioText}. 
+Highly detailed, 8k resolution, photorealistic, appetizing, natural vibrant colors, clean composition. 
+No text, no words, no watermarks, no logos, no packaging, editorial style.`;
 
-Requisitos técnicos:
-- Fotografia profissional de estúdio com iluminação natural suave
-- Resolução alta, foco nítido, cores naturais e vibrantes
-- Composição clean e apetitosa para catálogo de loja de orgânicos
-- Proporção 1:1 (quadrada)
-- SEM texto, SEM palavras, SEM marcas d'água, SEM logos
-- SEM embalagens artificiais, apenas o alimento em si
-- Estilo editorial de revista gastronômica`;
+    const negativePrompt = "text, words, logo, watermark, blurry, low quality, distorted, artificial, packaging, plastic bag, ugly, messy";
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: prompt }]
-                }],
-                generationConfig: {
-                    responseModalities: ['TEXT', 'IMAGE']
-                }
-            })
-        });
+        const response = await fetch(
+            `https://api-inference.huggingface.co/models/${HF_IMAGE_MODEL}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${HF_TOKEN}`,
+                },
+                body: JSON.stringify({
+                    inputs: prompt,
+                    parameters: {
+                        negative_prompt: negativePrompt,
+                    },
+                    options: {
+                        wait_for_model: true // Wait if model is loading
+                    }
+                }),
+            }
+        );
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || 'Falha ao gerar imagem com Gemini');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Falha ao gerar imagem com Hugging Face. Tente novamente em instantes.');
         }
 
-        const data = await response.json();
-
-        // Find the image part in the response
-        const parts = data.candidates?.[0]?.content?.parts || [];
-        const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
-
-        if (!imagePart?.inlineData?.data) {
-            throw new Error('A IA não retornou uma imagem. Tente novamente com outra descrição de cenário.');
-        }
-
-        // Convert base64 to blob
-        const base64 = imagePart.inlineData.data;
-        const mimeType = imagePart.inlineData.mimeType || 'image/webp';
-        const byteChars = atob(base64);
-        const byteNumbers = new Array(byteChars.length);
-        for (let i = 0; i < byteChars.length; i++) {
-            byteNumbers[i] = byteChars.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: mimeType });
+        const blob = await response.blob();
+        const mimeType = blob.type || 'image/jpeg';
 
         // Generate SEO-friendly filename
         const filePath = buildSeoFilename(productName, category);
@@ -217,7 +205,7 @@ Requisitos técnicos:
             });
 
         if (uploadError) {
-            throw new Error(`Erro ao salvar imagem: ${uploadError.message}`);
+            throw new Error(`Erro ao salvar imagem no Storage: ${uploadError.message}`);
         }
 
         // Get public URL
