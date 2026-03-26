@@ -3,21 +3,18 @@ import { supabase } from '@/lib/supabase';
 // ─── API Keys ─────────────────────────────────────────────────────────────────
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 // ─── Rate Limiting ───────────────────────────────────────────────────────────
 
 const RATE_LIMIT_KEY = 'lattuga_ai_img_gen';
 const MAX_PER_DAY = 30;
-const COOLDOWN_MS = 30_000; // 30 segundos entre gerações
+const COOLDOWN_MS = 30_000;
 
 interface RateLimitData {
-    date: string;      // YYYY-MM-DD
+    date: string;
     count: number;
-    lastGen: number;   // timestamp
+    lastGen: number;
 }
 
 function getRateLimitData(): RateLimitData {
@@ -28,7 +25,7 @@ function getRateLimitData(): RateLimitData {
             const today = new Date().toISOString().split('T')[0];
             if (data.date === today) return data;
         }
-    } catch { /* ignore parse errors */ }
+    } catch { }
     return { date: new Date().toISOString().split('T')[0], count: 0, lastGen: 0 };
 }
 
@@ -42,21 +39,13 @@ export function canGenerateImage(): { allowed: boolean; reason?: string; remaini
     const remaining = MAX_PER_DAY - data.count;
 
     if (data.count >= MAX_PER_DAY) {
-        return {
-            allowed: false,
-            reason: `Limite diário atingido (${MAX_PER_DAY} gerações). Tente novamente amanhã.`,
-            remaining: 0
-        };
+        return { allowed: false, reason: `Limite diário atingido (${MAX_PER_DAY} gerações). Tente novamente amanhã.`, remaining: 0 };
     }
 
     const elapsed = now - data.lastGen;
     if (elapsed < COOLDOWN_MS) {
         const waitSec = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
-        return {
-            allowed: false,
-            reason: `Aguarde ${waitSec}s antes de gerar outra imagem.`,
-            remaining
-        };
+        return { allowed: false, reason: `Aguarde ${waitSec}s antes de gerar outra imagem.`, remaining };
     }
 
     return { allowed: true, remaining };
@@ -99,7 +88,7 @@ export async function generateProductDescription(
     category: string
 ): Promise<string> {
     if (!GEMINI_API_KEY) {
-        throw new Error('Chave da API Gemini não configurada. Adicione VITE_GEMINI_API_KEY ao arquivo .env');
+        throw new Error('Chave da API Gemini não configurada.');
     }
 
     try {
@@ -136,24 +125,21 @@ Regras:
         const data = await response.json();
         let description = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 
-        // Remove nome do produto se a IA repetir no início
         const nameClean = productName.trim();
         if (description.toLowerCase().startsWith(nameClean.toLowerCase())) {
             description = description.substring(nameClean.length).replace(/^[:\s\-–]+/, '').trim();
         }
 
-        // Remove aspas se presentes
         description = description.replace(/^["'""]+|["'""]+$/g, '');
-
         return description.length > 150 ? description.substring(0, 147) + '...' : description;
 
     } catch (error) {
-        console.error('Erro ao gerar descrição com IA:', error);
+        console.error('Erro ao gerar descrição:', error);
         throw error;
     }
 }
 
-// ─── Product Image Generation (via Supabase Edge Function → SiliconFlow) ─────
+// ─── Product Image Generation (Vercel API Route → SiliconFlow) ───────────────
 
 export async function generateProductImage(
     productName: string,
@@ -161,11 +147,6 @@ export async function generateProductImage(
     scenario?: string
 ): Promise<string> {
 
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-        throw new Error('Variáveis VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY não configuradas.');
-    }
-
-    // Verificação de rate limit
     const rateCheck = canGenerateImage();
     if (!rateCheck.allowed) {
         throw new Error(rateCheck.reason);
@@ -178,59 +159,43 @@ export async function generateProductImage(
     const prompt = `Professional e-commerce product photography of "${productName}", organic food product, ${scenarioText}. High resolution, sharp focus, natural vibrant colors, clean appetizing composition for premium organic food store catalog. Square format 1:1. No text, no watermarks, no logos, no artificial packaging, food only. Editorial magazine style, photorealistic.`;
 
     try {
-        // ── Chama a Edge Function (sem CORS, sem expor a API key) ──
-        const response = await fetch(
-            `${SUPABASE_URL}/functions/v1/quick-action`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ prompt, productName, category }),
-            }
-        );
+        // Chama a Vercel API Route — same-origin, sem CORS, sem expor a chave
+        const response = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt }),
+        });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `Erro na Edge Function: ${response.status}`);
+            throw new Error(errorData.error || `Erro ao gerar imagem: ${response.status}`);
         }
 
         const data = await response.json();
         const imageUrl = data.imageUrl;
 
         if (!imageUrl) {
-            throw new Error('Edge Function não retornou imagem. Verifique o saldo SiliconFlow.');
+            throw new Error('Nenhuma imagem retornada. Verifique o saldo SiliconFlow.');
         }
 
-        // ── Baixa a imagem e sobe no Supabase Storage ──
+        // Baixa e sobe no Supabase Storage
         const imgResponse = await fetch(imageUrl);
-        if (!imgResponse.ok) {
-            throw new Error('Falha ao baixar imagem gerada.');
-        }
+        if (!imgResponse.ok) throw new Error('Falha ao baixar imagem gerada.');
         const blob = await imgResponse.blob();
 
         const filePath = buildSeoFilename(productName, category);
 
         const { error: uploadError } = await supabase.storage
             .from('product-images')
-            .upload(filePath, blob, {
-                contentType: 'image/webp',
-                upsert: true,
-            });
+            .upload(filePath, blob, { contentType: 'image/webp', upsert: true });
 
-        if (uploadError) {
-            throw new Error(`Erro ao salvar imagem no Storage: ${uploadError.message}`);
-        }
+        if (uploadError) throw new Error(`Erro ao salvar no Storage: ${uploadError.message}`);
 
-        // ── Retorna URL pública do Supabase Storage ──
         const { data: urlData } = supabase.storage
             .from('product-images')
             .getPublicUrl(filePath);
 
-        // Registra a geração no rate limit
         recordGeneration();
-
         return urlData.publicUrl;
 
     } catch (error: any) {
