@@ -174,17 +174,41 @@ export default function Products() {
         const fullPrompt = `${basePrompt}${contextPrompt}${qualityPrompt}`;
         const encodedPrompt = encodeURIComponent(fullPrompt);
         
-        // Use Pollinations API with authenticated key
+        // Use Pollinations API with authenticated key - model=flux for text-to-image
         const apiKey = import.meta.env.VITE_POLLINATIONS_API_KEY || '';
         const seed = Math.floor(Math.random() * 100000000);
         const generatedUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux&key=${apiKey}`;
         
-        // Pre-load the image so it shows up quickly when we set the URL
         setFormImageUrl(generatedUrl);
         
         setTimeout(() => {
             setIsGeneratingImage(false);
-        }, 500); // Small delay to show button feedback
+        }, 500);
+    };
+
+    const handleRecreateImage = () => {
+        if (!formImageUrl) {
+            alert('Este produto não possui uma imagem para recriar.');
+            return;
+        }
+        setIsGeneratingImage(true);
+        
+        // Build a prompt that describes the desired transformation
+        const scenarioText = formImageScenario || 'a beautiful professional food photography setting';
+        const recreatePrompt = `Transform this product image into a professional food photography scene. Place the product in ${scenarioText}. Keep the product recognizable. Studio lighting, 8k, photorealistic, appetizing. No text, no words, no watermarks.`;
+        const encodedPrompt = encodeURIComponent(recreatePrompt);
+        const encodedImageUrl = encodeURIComponent(formImageUrl);
+        
+        // Use kontext model for image-to-image transformation
+        const apiKey = import.meta.env.VITE_POLLINATIONS_API_KEY || '';
+        const seed = Math.floor(Math.random() * 100000000);
+        const generatedUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${seed}&model=kontext&image=${encodedImageUrl}&key=${apiKey}`;
+        
+        setFormImageUrl(generatedUrl);
+        
+        setTimeout(() => {
+            setIsGeneratingImage(false);
+        }, 500);
     };
 
     const toggleCatalog = (p: Product) => {
@@ -605,7 +629,7 @@ export default function Products() {
                                         onChange={(e) => setFormImageScenario(e.target.value)}
                                         placeholder="Ex: frutas em uma cesta, fundo claro..."
                                     />
-                                    <div className="flex justify-end mt-2">
+                                    <div className="flex justify-end gap-2 mt-2 flex-wrap">
                                         <Button
                                             type="button"
                                             onClick={handleGenerateImage}
@@ -615,8 +639,21 @@ export default function Products() {
                                             className="bg-white border-brand-200 text-brand-700 hover:bg-brand-50"
                                             leftIcon={<Wand2 size={14} />}
                                         >
-                                            {isGeneratingImage ? 'Gerando...' : 'Gerar Imagem com IA'}
+                                            {isGeneratingImage ? 'Gerando...' : 'Criar Imagem com IA'}
                                         </Button>
+                                        {formImageUrl && !formImageUrl.includes('pollinations.ai') && (
+                                            <Button
+                                                type="button"
+                                                onClick={handleRecreateImage}
+                                                disabled={isGeneratingImage}
+                                                variant="outline"
+                                                size="sm"
+                                                className="bg-white border-purple-200 text-purple-700 hover:bg-purple-50"
+                                                leftIcon={<Wand2 size={14} />}
+                                            >
+                                                {isGeneratingImage ? 'Recriando...' : 'Recriar com Cenário'}
+                                            </Button>
+                                        )}
                                     </div>
                                 </div>
                             </div>
