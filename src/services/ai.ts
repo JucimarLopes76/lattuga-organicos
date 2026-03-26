@@ -166,7 +166,7 @@ Requisitos técnicos:
 - Estilo editorial de revista gastronômica`;
 
     try {
-        const response = await fetch(`${GEMINI_API_URL}/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const response = await fetch(`${GEMINI_API_URL}/gemini-2.0-flash-exp-image-generation:generateContent?key=${GEMINI_API_KEY}`,{
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
