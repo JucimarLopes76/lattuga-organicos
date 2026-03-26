@@ -3,8 +3,6 @@ import { supabase } from '@/lib/supabase';
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-const POLLINATIONS_API_KEY = import.meta.env.VITE_POLLINATIONS_API_KEY;
-
 // ─── Rate Limiting ───────────────────────────────────────────────────────────
 
 const RATE_LIMIT_KEY = 'lattuga_ai_img_gen';
@@ -81,7 +79,7 @@ function buildSeoFilename(productName: string, category: string): string {
     return `${catSlug}/${nameSlug}-organico-${timestamp}.webp`;
 }
 
-// ─── Product Description Generation (Gemini) ────────────────────────────────
+// ─── Product Description Generation (Gemini 2.0 Flash) ────────────────────
 
 export async function generateProductDescription(productName: string, category: string): Promise<string> {
     if (!GEMINI_API_KEY) {
@@ -135,14 +133,17 @@ Regras:
     }
 }
 
-// ─── Product Image Generation (Pollinations FLUX - CORS Friendly) ───────────
+// ─── Product Image Generation (Gemini 2.0 Flash - Unified) ────────────────
 
 export async function generateProductImage(
     productName: string,
     category: string,
     scenario?: string
 ): Promise<string> {
-    
+    if (!GEMINI_API_KEY) {
+        throw new Error('Chave da API Gemini não configurada. Adicione VITE_GEMINI_API_KEY ao arquivo .env');
+    }
+
     // Check rate limit
     const rateCheck = canGenerateImage();
     if (!rateCheck.allowed) {
@@ -153,38 +154,61 @@ export async function generateProductImage(
         ? `, in a professional studio setting with ${scenario}`
         : ', professional food photography, isolated on a clean minimal aesthetic background, studio lighting';
 
-    // Prompt otimizado para o modelo FLUX (via Pollinations)
-    const prompt = `Highest quality professional food photography of ${productName}${scenarioText}. 
-Highly detailed, 8k resolution, photorealistic, appetizing, natural colors, clean composition, editorial culinary style. 
-No text, no words, no watermarks, no logos, no packaging, realistic textures.`;
+    const prompt = `Gere uma fotografia profissional para e-commerce do produto alimentício "${productName}"${scenarioText}.
 
-    const encodedPrompt = encodeURIComponent(prompt);
-    const randomSeed = Math.floor(Math.random() * 10000000);
-    
-    // Usamos model=flux que é o melhor disponível no Pollinations atualmente
-    const url = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1080&height=1080&nologo=true&seed=${randomSeed}&model=flux&key=${POLLINATIONS_API_KEY || ''}`;
+Requisitos técnicos:
+- Fotografia profissional de estúdio com iluminação natural suave
+- Resolução alta, foco nítido, cores naturais e vibrantes
+- Composição clean e apetitosa para catálogo de loja de orgânicos
+- Proporção 1:1 (quadrada)
+- SEM texto, SEM palavras, SEM marcas d'água, SEM logos
+- SEM embalagens artificiais, apenas o alimento em si
+- Estilo editorial de revista gastronômica`;
 
     try {
-        console.log('Solicitando imagem premium (FLUX):', url);
-        
-        // Buscamos a imagem
-        const response = await fetch(url);
-        
+        const response = await fetch(`${GEMINI_API_URL}/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: prompt }]
+                }],
+                generationConfig: {
+                    responseModalities: ['TEXT', 'IMAGE']
+                }
+            })
+        });
+
         if (!response.ok) {
-            throw new Error('Falha ao obter imagem da rede Pollinations. Tente novamente.');
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || 'Falha ao gerar imagem com Gemini');
         }
 
-        const blob = await response.blob();
-        if (!blob.type.startsWith('image/')) {
-             throw new Error('A API não retornou uma imagem válida. Tente novamente.');
+        const data = await response.json();
+
+        // Find the image part in the response
+        const parts = data.candidates?.[0]?.content?.parts || [];
+        const imagePart = parts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
+
+        if (!imagePart?.inlineData?.data) {
+            throw new Error('A IA não retornou uma imagem. Verifique sua cota diária do Imagen 3 no Google AI Studio.');
         }
 
-        const mimeType = blob.type;
+        // Convert base64 to blob
+        const base64 = imagePart.inlineData.data;
+        const mimeType = imagePart.inlineData.mimeType || 'image/webp';
+        const byteChars = atob(base64);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) {
+            byteNumbers[i] = byteChars.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimeType });
 
         // Generate SEO-friendly filename
         const filePath = buildSeoFilename(productName, category);
 
-        // Upload to Supabase Storage (MANTENDO A LÓGICA DE STORAGE PARA SEO)
+        // Upload to Supabase Storage
         const { error: uploadError } = await supabase.storage
             .from('product-images')
             .upload(filePath, blob, {
@@ -193,7 +217,7 @@ No text, no words, no watermarks, no logos, no packaging, realistic textures.`;
             });
 
         if (uploadError) {
-            throw new Error(`Erro no Supabase Storage: ${uploadError.message}`);
+            throw new Error(`Erro ao salvar imagem no Storage: ${uploadError.message}`);
         }
 
         // Get public URL
@@ -206,7 +230,7 @@ No text, no words, no watermarks, no logos, no packaging, realistic textures.`;
 
         return urlData.publicUrl;
     } catch (error: any) {
-        console.error('Erro detalhado na geração de imagem:', error);
+        console.error('Erro na geração de imagem Gemini:', error);
         throw error;
     }
 }
