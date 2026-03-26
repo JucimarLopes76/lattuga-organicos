@@ -4,7 +4,8 @@ const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const HF_TOKEN = import.meta.env.VITE_HUGGINGFACE_ACCESS_TOKEN;
-const HF_IMAGE_MODEL = 'stabilityai/stable-diffusion-xl-base-1.0';
+// Usando SDXL-Turbo: mais leve, rápido e menos chance de timeout
+const HF_IMAGE_MODEL = 'stabilityai/sdxl-turbo'; 
 
 // ─── Rate Limiting ───────────────────────────────────────────────────────────
 
@@ -136,7 +137,7 @@ Regras:
     }
 }
 
-// ─── Product Image Generation (Hugging Face SDXL) ───────────────────────────
+// ─── Product Image Generation (Hugging Face) ───────────────────────────
 
 export async function generateProductImage(
     productName: string,
@@ -144,7 +145,7 @@ export async function generateProductImage(
     scenario?: string
 ): Promise<string> {
     if (!HF_TOKEN) {
-        throw new Error('Token do Hugging Face não configurado. Adicione VITE_HUGGINGFACE_ACCESS_TOKEN ao arquivo .env');
+        throw new Error('Token do Hugging Face não configurado localmente. Verifique se adicionou VITE_HUGGINGFACE_ACCESS_TOKEN ao arquivo .env e reiniciou o servidor.');
     }
 
     // Check rate limit
@@ -154,17 +155,17 @@ export async function generateProductImage(
     }
 
     const scenarioText = scenario
-        ? `, in a beautiful professional setting with ${scenario}`
+        ? `, in a professional studio setting with ${scenario}`
         : ', professional food photography, isolated on a clean aesthetic background, studio lighting';
 
-    // O prompt para SDXL funciona melhor em inglês para termos técnicos de fotografia
-    const prompt = `Professional high-end food photography of ${productName}${scenarioText}. 
-Highly detailed, 8k resolution, photorealistic, appetizing, natural vibrant colors, clean composition. 
-No text, no words, no watermarks, no logos, no packaging, editorial style.`;
+    const prompt = `Highest quality professional food photography of ${productName}${scenarioText}. 
+Exquisite detail, 8k resolution, photorealistic, appetizing, natural vibrant colors, clean minimal composition, editorial style.`;
 
-    const negativePrompt = "text, words, logo, watermark, blurry, low quality, distorted, artificial, packaging, plastic bag, ugly, messy";
+    const negativePrompt = "text, words, logo, watermark, blurry, low quality, distorted, artificial, packaging, plastic bag, messy, lowres, text, error, cropped, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, out of frame, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck";
 
     try {
+        console.log('Solicitando imagem ao Hugging Face:', prompt);
+        
         const response = await fetch(
             `https://api-inference.huggingface.co/models/${HF_IMAGE_MODEL}`,
             {
@@ -177,21 +178,38 @@ No text, no words, no watermarks, no logos, no packaging, editorial style.`;
                     inputs: prompt,
                     parameters: {
                         negative_prompt: negativePrompt,
+                        num_inference_steps: 1, // Especifico para Turbo
+                        guidance_scale: 0.0,    // Especifico para Turbo
                     },
                     options: {
-                        wait_for_model: true // Wait if model is loading
+                        wait_for_model: true,
+                        use_cache: false
                     }
                 }),
             }
         );
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || 'Falha ao gerar imagem com Hugging Face. Tente novamente em instantes.');
+            let errorMessage = 'Erro desconhecido na API de imagem';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+            } catch {
+                errorMessage = `Erro ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
         }
 
         const blob = await response.blob();
-        const mimeType = blob.type || 'image/jpeg';
+        
+        // Verifica se o blob é mesmo uma imagem
+        if (!blob.type.startsWith('image/')) {
+             const text = await blob.text();
+             console.error('Resposta inesperada (não é imagem):', text);
+             throw new Error('A API retornou um formato inválido. Tente novamente.');
+        }
+
+        const mimeType = blob.type;
 
         // Generate SEO-friendly filename
         const filePath = buildSeoFilename(productName, category);
@@ -205,7 +223,7 @@ No text, no words, no watermarks, no logos, no packaging, editorial style.`;
             });
 
         if (uploadError) {
-            throw new Error(`Erro ao salvar imagem no Storage: ${uploadError.message}`);
+            throw new Error(`Erro no Supabase Storage: ${uploadError.message}`);
         }
 
         // Get public URL
@@ -217,8 +235,14 @@ No text, no words, no watermarks, no logos, no packaging, editorial style.`;
         recordGeneration();
 
         return urlData.publicUrl;
-    } catch (error) {
-        console.error('Erro ao gerar imagem com IA:', error);
+    } catch (error: any) {
+        console.error('Erro detalhado na geração de imagem:', error);
+        
+        // Se for erro de fetch, dar uma dica sobre CORS/Token
+        if (error.message === 'Failed to fetch') {
+            throw new Error('Falha na conexão com Hugging Face. Verifique se o Token é válido e se reiniciou o servidor local.');
+        }
+        
         throw error;
     }
 }
