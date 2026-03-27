@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { generateProductDescription, generateProductImage, canGenerateImage, getRemainingGenerations } from '@/services/ai';
 import { useProductsStore } from '@/stores/productsStore';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, cn, isProductPackaged } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { Modal } from '@/components/ui/Modal';
@@ -58,6 +58,9 @@ export default function Products() {
     const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
     const [formImageScenario, setFormImageScenario] = useState('');
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+
+    // Computed properties for the active form
+    const isPackagedItem = isProductPackaged(formName, formCategory);
 
     // Compute next internal code for new products
     const nextInternalCode = String(
@@ -336,9 +339,16 @@ export default function Products() {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <span className="px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-medium">
-                                                {p.category}
-                                            </span>
+                                            <div className="flex flex-col gap-1.5 items-start">
+                                                <span className="px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-medium w-fit">
+                                                    {p.category}
+                                                </span>
+                                                {isProductPackaged(p.name, p.category) ? (
+                                                    <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded w-fit uppercase font-bold tracking-wider" title="Produto Industrializado / Empresa">Embalado</span>
+                                                ) : (
+                                                    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded w-fit uppercase font-bold tracking-wider" title="Natural / Fresco">In Natura</span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 font-semibold text-gray-900 text-sm">
                                             {formatCurrency(p.price)}
@@ -423,9 +433,17 @@ export default function Products() {
                                             {p.name}
                                         </p>
                                     </div>
-                                    <p className="text-xs text-gray-500">
-                                        {p.category} · Estoque: {p.stock_qty}
-                                    </p>
+                                    <div className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
+                                        <span>{p.category}</span>
+                                        <span>·</span>
+                                        {isProductPackaged(p.name, p.category) ? (
+                                            <span className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded uppercase font-bold tracking-widest">Embalado</span>
+                                        ) : (
+                                            <span className="text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded uppercase font-bold tracking-widest">In Natura</span>
+                                        )}
+                                        <span>·</span>
+                                        <span>Estoque: {p.stock_qty}</span>
+                                    </div>
                                     <p className="text-sm font-bold text-brand-600">
                                         {formatCurrency(p.price)}
                                     </p>
@@ -601,21 +619,28 @@ export default function Products() {
                                         onChange={(e) => setFormImageScenario(e.target.value)}
                                         placeholder="Ex: frutas em uma cesta, fundo claro..."
                                     />
-                                    <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
-                                        <span className="text-xs text-gray-400">
-                                            {getRemainingGenerations()} gerações restantes hoje
-                                        </span>
-                                        <Button
-                                            type="button"
-                                            onClick={handleGenerateImage}
-                                            disabled={!formName || isGeneratingImage || !canGenerateImage().allowed}
-                                            variant="outline"
-                                            size="sm"
-                                            className="bg-white border-brand-200 text-brand-700 hover:bg-brand-50"
-                                            leftIcon={isGeneratingImage ? <RefreshCw size={14} className="animate-spin" /> : <Wand2 size={14} />}
-                                        >
-                                            {isGeneratingImage ? 'Gerando imagem...' : 'Gerar Imagem com IA'}
-                                        </Button>
+                                    <div className="flex flex-col gap-2 mt-2">
+                                        <div className="flex items-center justify-between flex-wrap gap-2">
+                                            <span className="text-xs text-gray-400">
+                                                {getRemainingGenerations()} gerações restantes hoje
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                onClick={handleGenerateImage}
+                                                disabled={!formName || isGeneratingImage || !canGenerateImage().allowed || isPackagedItem}
+                                                variant="outline"
+                                                size="sm"
+                                                className="bg-white border-brand-200 text-brand-700 hover:bg-brand-50"
+                                                leftIcon={isGeneratingImage ? <RefreshCw size={14} className="animate-spin" /> : <Wand2 size={14} />}
+                                            >
+                                                {isGeneratingImage ? 'Gerando imagem...' : 'Gerar Imagem com IA'}
+                                            </Button>
+                                        </div>
+                                        {isPackagedItem && (
+                                            <p className="text-[11px] leading-tight text-amber-600 bg-amber-50 border border-amber-100 p-2 rounded-lg font-medium">
+                                                A IA de imagem está <strong>desativada</strong> para produtos embalados/industrializados. Isso evita alucinações onde a IA "inventa" embalagens falsas. Utilize imagens reais do fornecedor.
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>

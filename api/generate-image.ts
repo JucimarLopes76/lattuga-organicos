@@ -21,7 +21,7 @@ export default async function handler(req: Request) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'black-forest-labs/FLUX-1.1-pro',
+        model: 'black-forest-labs/FLUX.1-schnell',
         prompt,
         image_size: '1024x1024',
         batch_size: 1,

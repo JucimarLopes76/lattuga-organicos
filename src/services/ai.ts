@@ -145,7 +145,8 @@ export async function generateProductImage(
     productName: string,
     category: string,
     scenario?: string,
-    existingImageUrl?: string
+    existingImageUrl?: string,
+    description?: string // Add description parameter
 ): Promise<string> {
 
     const rateCheck = canGenerateImage();
@@ -153,26 +154,25 @@ export async function generateProductImage(
         throw new Error(rateCheck.reason);
     }
 
-    // Detecta se é produto embalado (industrializado ou de marca)
-    const FRESH_CATEGORIES = ['Verduras', 'Legumes', 'Frutas'];
-    const PACKAGED_KEYWORDS = /korin|native|orgânic[ao]|mãe terra|taeq|jasmine|vitao|vitalin|bem estar|qualitá/i;
-
-    const isFreshProduce = FRESH_CATEGORIES.includes(category) && !PACKAGED_KEYWORDS.test(productName);
-    const hasExistingImage = !!existingImageUrl;
-    const isPackaged = !isFreshProduce || hasExistingImage || PACKAGED_KEYWORDS.test(productName);
-
-    let prompt: string;
-
-    if (scenario) {
-        // Cenário customizado pelo usuário — respeita o que ele digitou
-        prompt = `Product photography of "${productName}", organic food, ${scenario}. ${isFreshProduce ? 'The product itself is the clear hero, no packaging.' : 'Packaged product as the hero.'} High resolution, sharp focus, natural colors, photorealistic, square format 1:1. No text overlays, no watermarks.`;
-    } else if (isPackaged) {
-        // Produto embalado: lifestyle simples com a embalagem em destaque
-        prompt = `Lifestyle product photography of "${productName}" organic packaged food. The package is prominently centered as the hero. Clean minimal setting: white marble surface or light wooden table, soft natural side lighting, one or two complementary natural ingredients subtly in background (blurred). Square format 1:1. High resolution, photorealistic, no text overlays, no watermarks, no logos added by AI.`;
-    } else {
-        // Produto fresco (verdura, legume, fruta): photo limpa e direta
-        prompt = `Clean product photography of fresh organic "${productName}". The vegetable/fruit is the clear hero, prominently centered, filling most of the frame. Pure white or very light neutral background. Natural studio lighting, sharp focus, vibrant natural colors. No packaging, no props, no clutter. Square format 1:1. High resolution, photorealistic, appetizing, no text, no watermarks.`;
+    // Usando import dinâmico para evitar dependências circulares caso existam no futuro, embora útil. 
+    // Ou podemos trazer direto do local scope, mas como é um proxy import, vamos importar nativamente do Utils
+    const { isProductPackaged } = await import('@/lib/utils');
+    
+    if (isProductPackaged(productName, category)) {
+        throw new Error('A IA de geração de imagem está desativada para produtos de empresas/embalados para evitar alucinações (como inventar falsas embalagens). Utilize a imagem oficial do fornecedor.');
     }
+
+    const baseDesc = description ? ` Descrição do produto: "${description}".` : '';
+    const baseScen = scenario ? ` Cenário/fundo desejado: "${scenario}".` : ' Cenário: Fundo limpo ou cenário natural suave e sutil que ressalte o frescor do alimento.';
+    
+    // Prompt altamente restritivo para evitar embalagens alucinadas para produtos In Natura e seguir a regra de texto sem palavras
+    const prompt = `Gere uma fotografia hiper-realista e profissional para e-commerce do seguinte alimento natural e fresco: "${productName}".${baseDesc}${baseScen}
+
+REGRAS ESTRITAS (Obrigatório seguir todas):
+1. A imagem DEVE exibir APENAS o alimento/ingrediente 'in natura' de forma limpa (ex: verduras folhas, legumes, frutas soltas, etc).
+2. É ESTRITAMENTE PROIBIDO desenhar sacos, embalagens plásticas, papel kraft, caixas, potes, vidros ou pacotes de qualquer tipo ("NO PACKAGING").
+3. É ESTRITAMENTE PROIBIDO incluir letras, palavras, blocos de texto, adesivos, rótulos ou marcas d'água na imagem ("NO TEXT").
+4. A composição deve ser de fotografia de estúdio gastronômico, com iluminação natural, foco nítido, formato quadrado 1:1, textura apetitosa e cores autênticas. O alimento deve ser o único foco realçado.`;
 
     try {
         const response = await fetch('/api/generate-image', {
@@ -190,7 +190,7 @@ export async function generateProductImage(
         const imageBase64 = data.imageBase64;
 
         if (!imageBase64) {
-            throw new Error('SiliconFlow não retornou imagem. Verifique seu saldo.');
+            throw new Error('A IA não retornou imagem. Tente novamente mais tarde.');
         }
 
         // Converte base64 → Blob para upload no Supabase
