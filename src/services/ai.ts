@@ -159,8 +159,8 @@ export async function generateProductImage(
         throw new Error('A IA de geração de imagem está desativada para produtos de empresas/embalados para evitar alucinações (como inventar falsas embalagens). Utilize a imagem oficial do fornecedor.');
     }
 
-    const baseDesc = description ? ` Descrição do produto: "${description}".` : '';
-    const baseScen = scenario ? ` Cenário/fundo desejado: "${scenario}".` : ' Cenário: Fundo limpo ou cenário natural suave e sutil que ressalte o frescor do alimento.';
+    const baseDesc = description ? ` Characteristics: ${description}.` : '';
+    const baseScen = scenario ? ` Background/Scenario: ${scenario}.` : ' Background: perfectly clean white minimalist studio background.';
     
     // Limpar o nome do produto para a IA não se confundir com palavras como "Orgânica", "(kg)", "Maço", etc.
     const cleanName = productName
@@ -169,18 +169,8 @@ export async function generateProductImage(
         .replace(/\b(kg|maço|bandeja|g|ml|litro|peça|dúzia|unidade)\b/ig, '')
         .trim();
 
-    // Prompt altamente restritivo para evitar embalagens alucinadas para produtos In Natura e seguir a regra de texto sem palavras
-    const prompt = `Gere uma fotografia hiper-realista e profissional para e-commerce do seguinte alimento natural e fresco: "${cleanName}".
-
-[CRITICAL INSTRUCTION TO AI: Identify the botanical species of "${cleanName}" (translate its Portuguese name mentally to English to ensure flawless accuracy). Generate a photorealistic macro shot of this EXACT real-world fruit/vegetable. DO NOT invent hybrid fruits.]
-
-${baseDesc}${baseScen}
-
-REGRAS ESTRITAS (Obrigatório seguir todas):
-1. A imagem DEVE exibir APENAS o alimento/ingrediente 'in natura' de forma limpa, sendo 100% fiel à sua anatomia, formato e cor real no mundo físico. Jamais crie híbridos ou frutas alienígenas.
-2. É ESTRITAMENTE PROIBIDO desenhar sacos, embalagens plásticas, papel kraft, caixas, potes, vidros ou pacotes de qualquer tipo ("NO PACKAGING").
-3. É ESTRITAMENTE PROIBIDO incluir letras, palavras, blocos de texto, adesivos, rótulos ou marcas d'água na imagem ("NO TEXT").
-4. A composição deve ser de fotografia de estúdio gastronômico, com iluminação natural, foco nítido, formato quadrado 1:1, textura apetitosa e cores autênticas. O alimento deve ser o único foco realçado.`;
+    // Prompt curto e otimizado para o FLUX-1.1-pro, usando inglês claro e focando em fotografia e-commerce
+    const prompt = `Professional e-commerce macro studio photography of a fresh ${cleanName}.${baseDesc}${baseScen} High end commercial food photography, sharp focus, ultra realistic, highly detailed, vibrant, appetizing. No text, no packaging, isolated product.`;
 
     try {
         const response = await fetch('/api/generate-image', {
