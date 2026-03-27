@@ -100,17 +100,16 @@ export async function generateProductDescription(
                 body: JSON.stringify({
                     contents: [{
                         parts: [{
-                            text: `Você é redator da Lattuga Organicos, uma loja premium de alimentos orgânicos e naturais.
+                            text: `Você é um nutricionista e redator autêntico da Lattuga Organicos.
+Crie uma descrição super curta (máximo 120 caracteres) para o produto "${productName}" focada ESTRITAMENTE em seus benefícios nutricionais REAIS.
 
-Crie uma descrição de até 150 caracteres para o produto "${productName}" (Categoria: ${category}).
-
-Regras:
-- NÃO repita o nome do produto
-- Comece direto com a qualidade/benefício
-- Destaque: frescor, procedência orgânica, sabor natural, benefícios à saúde
-- Tom: premium, confiável, natural
-- Use linguagem que desperte desejo no consumidor consciente
-- Máximo 150 caracteres, sem aspas`
+Regras OBRIGATÓRIAS:
+1. NÃO repita o nome do produto no texto. Vá direto ao ponto.
+2. Instigue a compra destacando o valor à saúde.
+3. Cite apenas vitaminas, minerais ou propriedades biológicas VERDADEIRAS e comprovadas deste exato alimento (ex: "Rico em Vitamina C e antioxidantes naturais", "Alta concentração de fibras").
+4. É ESTRITAMENTE PROIBIDO mentir, generalizar ou alucinar benefícios que o produto não possui.
+5. Tom direto, premium e comercial.
+6. Não use aspas.`
                         }]
                     }]
                 })
