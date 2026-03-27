@@ -162,10 +162,17 @@ export async function generateProductImage(
     const baseDesc = description ? ` Descrição do produto: "${description}".` : '';
     const baseScen = scenario ? ` Cenário/fundo desejado: "${scenario}".` : ' Cenário: Fundo limpo ou cenário natural suave e sutil que ressalte o frescor do alimento.';
     
-    // Prompt altamente restritivo para evitar embalagens alucinadas para produtos In Natura e seguir a regra de texto sem palavras
-    const prompt = `Gere uma fotografia hiper-realista e profissional para e-commerce do seguinte alimento natural e fresco: "${productName}".
+    // Limpar o nome do produto para a IA não se confundir com palavras como "Orgânica", "(kg)", "Maço", etc.
+    const cleanName = productName
+        .replace(/orgânic[ao]s?/ig, '')
+        .replace(/\(.*\)/g, '')
+        .replace(/\b(kg|maço|bandeja|g|ml|litro|peça|dúzia|unidade)\b/ig, '')
+        .trim();
 
-[CRITICAL INSTRUCTION TO AI: Identify the botanical species of "${productName}" (translate its Portuguese name mentally to English to ensure flawless accuracy). Generate a photorealistic macro shot of this EXACT real-world fruit/vegetable. DO NOT invent hybrid fruits.]
+    // Prompt altamente restritivo para evitar embalagens alucinadas para produtos In Natura e seguir a regra de texto sem palavras
+    const prompt = `Gere uma fotografia hiper-realista e profissional para e-commerce do seguinte alimento natural e fresco: "${cleanName}".
+
+[CRITICAL INSTRUCTION TO AI: Identify the botanical species of "${cleanName}" (translate its Portuguese name mentally to English to ensure flawless accuracy). Generate a photorealistic macro shot of this EXACT real-world fruit/vegetable. DO NOT invent hybrid fruits.]
 
 ${baseDesc}${baseScen}
 
