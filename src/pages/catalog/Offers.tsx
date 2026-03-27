@@ -123,7 +123,7 @@ export default function Offers() {
                                             </div>
                                             <div className="flex flex-1 flex-col p-4">
                                                 <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 mb-1">{product.name}</h3>
-                                                <p className="text-xs text-gray-500 line-clamp-2 mb-3">{product.description}</p>
+                                                <p className="text-xs text-gray-500 mb-3 leading-relaxed">{product.description}</p>
                                                 <div className="mt-auto">
                                                     <span className="text-xl font-bold text-red-600 block mb-2">{formatCurrency(product.price)}</span>
                                                     <Button 
