@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { useOrdersStore } from '@/stores/ordersStore';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import logoImg from '@/imagens/logo_lattuga_organicos-removebg-preview.png';
@@ -55,6 +56,65 @@ export function AdminLayout() {
             setManifest('/manifest.webmanifest');
         };
     }, []);
+
+    // Global Order Notification Listener
+    useEffect(() => {
+        if (!user) return; // Only listen if logged in
+        
+        const fetchOrders = useOrdersStore.getState().fetchOrders;
+
+        const playNotification = () => {
+            const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+            audio.play().catch(e => console.error('Audio play error:', e));
+
+            if (Notification.permission === 'granted') {
+                new Notification('Lattuga Orgânicos 🛒', {
+                    body: 'Novo Pedido Online Recebido!',
+                    icon: '/icon.png'
+                });
+            }
+        };
+
+        console.log("Global AdminLayout: Setting up Supabase Realtime subscription for Orders...");
+        const channel = supabase
+            .channel('global-orders-channel')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'orders' },
+                (payload: any) => {
+                    if (payload.new.type === 'online') {
+                        playNotification();
+                        fetchOrders();
+                    }
+                }
+            )
+            .subscribe();
+
+        // POLLING FALLBACK (Every 15s) in case socket drops
+        const intervalId = setInterval(async () => {
+            const { data: latestOrder } = await supabase
+                .from('orders')
+                .select('id, type, created_at')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (latestOrder) {
+                const currentTopOrder = useOrdersStore.getState().orders[0];
+                if (!currentTopOrder || (latestOrder.id !== currentTopOrder.id && new Date(latestOrder.created_at) > new Date(currentTopOrder.created_at))) {
+                    if (latestOrder.type === 'online') {
+                        playNotification();
+                    }
+                    fetchOrders();
+                }
+            }
+        }, 15000);
+
+        return () => {
+            supabase.removeChannel(channel);
+            clearInterval(intervalId);
+        };
+    }, [user]);
 
     // Push Notification Setup
     useEffect(() => {

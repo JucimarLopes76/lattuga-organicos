@@ -47,24 +47,8 @@ export default function Orders() {
     const [isCancelling, setIsCancelling] = useState(false);
     const [filter, setFilter] = useState<string>('all');
 
-    // Notification Sound (Base64 for reliability)
-    const notificationSound = useMemo(() => new Audio('data:audio/mp3;base64,//uQRAAAAWMSLwUIYAUC4AAAAA0gAAAB5AAABTVuQU5T//uQZAAABAAAbwAAAAACAAA0gAAAB5AAABTVuQU5T//uQZAAABAAAbwAAAAACAAA0gAAAB5AAABTVuQU5T//uQZAAABAAAbwAAAAACAAA0gAAAB5AAABTVuQU5T//uQZAAABAAAbwAAAAACAAA0gAAAB5AAABTVuQU5T//uQZAAABAAAbwAAAAACAAA0gAAAB5AAABTVuQU5T//uQZAAABAAAbwAAAAACAAA0gAAAB5AAABTVuQU5T//uQZAAABAAAbwAAAAACAAA0gAAAB5AAABTVuQU5T//uQZAAABAAAbwAAAAACAAA0gAAAB5AAABTVuQU5T//uQZAAABAAAbwAAAAACAAA0gAAAB5AAABTVuQU5T//uQZAAABAAAbwAAAAACAAA0gAAAB5AAABTVuQU5T//uQZAAABAAAbwAAAAACAAA0gAAAB5AAABTVuQU5T'), []); // Just an example base64 placeholder to be replaced by a real beep
-    const playNotification = () => {
-        const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
-        audio.play().catch(e => {
-            console.error('Audio play error:', e);
-            alert('Erro ao tocar som: ' + e.message);
-        });
-
-        if (Notification.permission === 'granted') {
-            new Notification('Teste de Notificação 🔔', {
-                body: 'Se você está vendo isso, as notificações estão funcionando!',
-                icon: '/icon.png'
-            });
-        } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission();
-        }
-    };
+    // Notifications and real-time listening are now globally handled in AdminLayout.tsx 
+    // to ensure they work even when the admin is on the Products or Dashboard pages.
 
     // Advanced Filters State
     const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'year' | 'custom'>('month');
@@ -78,62 +62,7 @@ export default function Orders() {
     useEffect(() => {
         // Initial fetch
         fetchOrders();
-
-        // Ref to track last seen orders to detect new ones for notifications
-        const lastOrdersRef = { current: [] as Order[] };
-
-        // Realtime Subscription
-        console.log("Setting up Supabase Realtime subscription...");
-        const channel = supabase
-            .channel('orders-channel')
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'orders' },
-                (payload: any) => {
-                    console.log("Realtime event received:", payload);
-                    if (payload.new.type === 'online') {
-                        playNotification();
-                        fetchOrders();
-                    }
-                }
-            )
-            .subscribe((status) => {
-                if (status === 'CHANNEL_ERROR') {
-                    console.error("Supabase Realtime Connection Error. Falling back to polling.");
-                }
-            });
-
-        // POLLING FALLBACK (Every 15s)
-        const intervalId = setInterval(async () => {
-            // Check for new orders via polling
-            const { data: latestOrder } = await supabase
-                .from('orders')
-                .select('id, type, created_at')
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
-
-            if (latestOrder) {
-                const currentTopOrder = useOrdersStore.getState().orders[0];
-                if (!currentTopOrder || (latestOrder.id !== currentTopOrder.id && new Date(latestOrder.created_at) > new Date(currentTopOrder.created_at))) {
-                    // New order detected via polling!
-                    if (latestOrder.type === 'online') {
-                        playNotification();
-                    }
-                    fetchOrders();
-                }
-            }
-        }, 15000);
-
-        // Request notification permission
-        if (Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
-
-        return () => {
-            supabase.removeChannel(channel);
-            clearInterval(intervalId);
-        };
+        // Global realtime listener lives in AdminLayout.tsx!
     }, [fetchOrders]);
 
     // Update dates when preset changes
