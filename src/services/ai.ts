@@ -117,7 +117,10 @@ Regras OBRIGATÓRIAS:
         );
 
         if (!response.ok) {
-            const errorData = await response.json();
+            if (response.status === 429) {
+                throw new Error('Limite de uso atingido (15 requisições por minuto). Aguarde uns 10 segundinhos e tente novamente! ⏳');
+            }
+            const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.error?.message || 'Falha ao gerar descrição com Gemini');
         }
 
@@ -157,7 +160,12 @@ async function translateToEnglish(productName: string): Promise<string> {
                 })
             }
         );
-        if (!response.ok) return productName;
+        if (!response.ok) {
+            if (response.status === 429) {
+                throw new Error('Limite do Gemini atingido (15/min). Aguarde 10 segundinhos antes de gerar a imagem! ⏳');
+            }
+            return productName;
+        }
         const data = await response.json();
         const translation = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || productName;
         return translation.replace(/[^a-zA-Z\s\-]/g, ''); // Limpa qualquer aspas extra
