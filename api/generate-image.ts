@@ -42,7 +42,15 @@ export default async function handler(req: Request) {
     const imgRes = await fetch(imageUrl)
     if (!imgRes.ok) throw new Error(`Falha ao baixar imagem do CDN: ${imgRes.status}`)
     const imgBuffer = await imgRes.arrayBuffer()
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)))
+    const bytes = new Uint8Array(imgBuffer)
+    
+    // Chunk conversion to avoid "Maximum call stack size exceeded"
+    let binary = ''
+    const len = bytes.byteLength
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i])
+    }
+    const base64 = btoa(binary)
 
     return new Response(JSON.stringify({ imageBase64: base64 }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
