@@ -35,6 +35,8 @@ export function AdminLayout() {
     const [pushStatus, setPushStatus] = useState<NotificationPermission | 'unsupported'>('default');
     const logout = useAuthStore((s) => s.logout);
     const user = useAuthStore((s) => s.user);
+    const orders = useOrdersStore((s) => s.orders);
+    const pendingOrdersCount = orders.filter((o) => o.status === 'pending').length;
 
     // Dynamic Manifest Injection for Admin PWA
     useEffect(() => {
@@ -255,7 +257,12 @@ export function AdminLayout() {
                             }
                         >
                             <item.icon size={20} />
-                            {item.label}
+                            <span className="flex-1">{item.label}</span>
+                            {item.to === '/admin/orders' && pendingOrdersCount > 0 && (
+                                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white shadow-sm animate-pulse-once">
+                                    {pendingOrdersCount > 99 ? '99+' : pendingOrdersCount}
+                                </span>
+                            )}
                         </NavLink>
                     ))}
                 </nav>
