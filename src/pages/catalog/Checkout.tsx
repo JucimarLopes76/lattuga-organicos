@@ -17,12 +17,12 @@ import { useOnlineCartStore } from '@/stores/onlineCartStore';
 import { useOnlineSessionStore } from '@/stores/onlineSessionStore';
 import { useCustomersStore } from '@/stores/customersStore';
 import { useOrdersStore } from '@/stores/ordersStore';
-import { formatCurrency, generateWhatsAppLink, generateOrderSummary } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
 import type { DeliveryMethod, PaymentMethod } from '@/types';
 
-type Step = 'info' | 'delivery' | 'payment' | 'confirm';
+type Step = 'info' | 'delivery' | 'payment' | 'confirm' | 'success';
 
 interface AddressForm {
     cep: string;
@@ -132,7 +132,7 @@ export default function Checkout() {
     const pixKey = import.meta.env.VITE_PIX_KEY || 'pix@lattugaorganicos.com.br';
     const whatsAppPhone = import.meta.env.VITE_WHATSAPP_PHONE || '5511999999999';
 
-    if (items.length === 0) {
+    if (items.length === 0 && step !== 'success') {
         navigate('/cart');
         return null;
     }
@@ -195,28 +195,10 @@ export default function Checkout() {
             return;
         }
 
-        // Generate WhatsApp message
-        const summary = generateOrderSummary(
-            orderId,
-            items.map((i) => ({
-                name: i.product.name,
-                quantity: i.quantity,
-                unitPrice: i.product.price,
-            })),
-            subtotal,
-            deliveryMethod,
-            paymentMethod,
-            name,
-            deliveryMethod === 'delivery' ? formattedAddress : null
-        );
-
-        const waLink = generateWhatsAppLink(whatsAppPhone, summary);
-
-        // Reset cart & redirect
+        // Show success state and clear cart
         reset();
-        window.open(waLink, '_blank');
         setLoading(false);
-        navigate('/');
+        setStep('success');
     };
 
     return (
@@ -224,39 +206,41 @@ export default function Checkout() {
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Checkout</h1>
 
             {/* Progress */}
-            <div className="flex items-center gap-2 mb-8">
-                {(['info', 'delivery', 'payment', 'confirm'] as Step[]).map(
-                    (s, idx) => (
-                        <div key={s} className="flex items-center gap-2 flex-1">
-                            <div
-                                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors ${step === s
-                                    ? 'bg-brand-600 text-white'
-                                    : idx <
-                                        ['info', 'delivery', 'payment', 'confirm'].indexOf(step)
-                                        ? 'bg-brand-200 text-brand-700'
-                                        : 'bg-gray-200 text-gray-500'
-                                    }`}
-                            >
-                                {idx + 1}
-                            </div>
-                            {idx < 3 && (
-                                <div className="flex-1 h-0.5 bg-gray-200 rounded">
-                                    <div
-                                        className="h-full bg-brand-400 rounded transition-all"
-                                        style={{
-                                            width:
-                                                idx <
-                                                    ['info', 'delivery', 'payment', 'confirm'].indexOf(step)
-                                                    ? '100%'
-                                                    : '0%',
-                                        }}
-                                    />
+            {step !== 'success' && (
+                <div className="flex items-center gap-2 mb-8">
+                    {(['info', 'delivery', 'payment', 'confirm'] as Step[]).map(
+                        (s, idx) => (
+                            <div key={s} className="flex items-center gap-2 flex-1">
+                                <div
+                                    className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors ${step === s
+                                        ? 'bg-brand-600 text-white'
+                                        : idx <
+                                            ['info', 'delivery', 'payment', 'confirm'].indexOf(step)
+                                            ? 'bg-brand-200 text-brand-700'
+                                            : 'bg-gray-200 text-gray-500'
+                                        }`}
+                                >
+                                    {idx + 1}
                                 </div>
-                            )}
-                        </div>
-                    )
-                )}
-            </div>
+                                {idx < 3 && (
+                                    <div className="flex-1 h-0.5 bg-gray-200 rounded">
+                                        <div
+                                            className="h-full bg-brand-400 rounded transition-all"
+                                            style={{
+                                                width:
+                                                    idx <
+                                                        ['info', 'delivery', 'payment', 'confirm'].indexOf(step)
+                                                        ? '100%'
+                                                        : '0%',
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    )}
+                </div>
+            )}
 
             {/* Step 1: Customer Info */}
             {step === 'info' && (
@@ -722,11 +706,35 @@ export default function Checkout() {
                             className="flex-1"
                             size="lg"
                             isLoading={loading}
-                            leftIcon={<MessageCircle size={18} />}
+                            leftIcon={<CheckCircle2 size={18} />}
                         >
-                            Enviar via WhatsApp
+                            Concluir Pedido
                         </Button>
                     </div>
+                </div>
+            )}
+
+            {/* Step 5: Success */}
+            {step === 'success' && (
+                <div className="animate-fade-in flex flex-col items-center justify-center py-12 text-center space-y-6">
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-green-100 text-green-600">
+                        <CheckCircle2 size={48} />
+                    </div>
+                    <div className="space-y-4">
+                        <h2 className="text-3xl font-bold text-gray-900">
+                            Pedido Recebido!
+                        </h2>
+                        <p className="text-gray-600 max-w-sm mx-auto text-lg leading-relaxed">
+                            Obrigado pela preferência. A Lattuga já está preparando os seus orgânicos com o carinho que você merece.
+                        </p>
+                    </div>
+                    <Button
+                        onClick={() => navigate('/')}
+                        size="lg"
+                        className="mt-6 px-10 py-6 text-lg"
+                    >
+                        Voltar ao Catálogo
+                    </Button>
                 </div>
             )}
         </div>
