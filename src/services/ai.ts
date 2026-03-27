@@ -130,7 +130,7 @@ Regras OBRIGATÓRIAS:
         }
 
         description = description.replace(/^["'""]+|["'""]+$/g, '');
-        return description.length > 150 ? description.substring(0, 147) + '...' : description;
+        return description;
 
     } catch (error) {
         console.error('Erro ao gerar descrição:', error);
