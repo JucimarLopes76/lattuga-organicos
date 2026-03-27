@@ -174,7 +174,7 @@ export default function Products() {
 
         setIsGeneratingImage(true);
         try {
-            const imageUrl = await generateProductImage(formName, formCategory, formImageScenario || undefined);
+            const imageUrl = await generateProductImage(formName, formCategory, formImageScenario || undefined, formImageUrl || undefined);
             setFormImageUrl(imageUrl);
         } catch (error: any) {
             alert(error.message || 'Erro ao gerar imagem com IA');

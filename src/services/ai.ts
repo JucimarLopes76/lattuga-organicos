@@ -144,7 +144,8 @@ Regras:
 export async function generateProductImage(
     productName: string,
     category: string,
-    scenario?: string
+    scenario?: string,
+    existingImageUrl?: string
 ): Promise<string> {
 
     const rateCheck = canGenerateImage();
@@ -152,11 +153,26 @@ export async function generateProductImage(
         throw new Error(rateCheck.reason);
     }
 
-    const scenarioText = scenario
-        ? `professional studio setting with ${scenario}`
-        : 'professional food photography, isolated on clean minimal white background, studio lighting, soft natural light';
+    // Detecta se é produto embalado (industrializado ou de marca)
+    const FRESH_CATEGORIES = ['Verduras', 'Legumes', 'Frutas'];
+    const PACKAGED_KEYWORDS = /korin|native|orgânic[ao]|mãe terra|taeq|jasmine|vitao|vitalin|bem estar|qualitá/i;
 
-    const prompt = `Professional e-commerce product photography of "${productName}", organic food product, ${scenarioText}. High resolution, sharp focus, natural vibrant colors, clean appetizing composition for premium organic food store catalog. Square format 1:1. No text, no watermarks, no logos, no artificial packaging, food only. Editorial magazine style, photorealistic.`;
+    const isFreshProduce = FRESH_CATEGORIES.includes(category) && !PACKAGED_KEYWORDS.test(productName);
+    const hasExistingImage = !!existingImageUrl;
+    const isPackaged = !isFreshProduce || hasExistingImage || PACKAGED_KEYWORDS.test(productName);
+
+    let prompt: string;
+
+    if (scenario) {
+        // Cenário customizado pelo usuário — respeita o que ele digitou
+        prompt = `Product photography of "${productName}", organic food, ${scenario}. ${isFreshProduce ? 'The product itself is the clear hero, no packaging.' : 'Packaged product as the hero.'} High resolution, sharp focus, natural colors, photorealistic, square format 1:1. No text overlays, no watermarks.`;
+    } else if (isPackaged) {
+        // Produto embalado: lifestyle simples com a embalagem em destaque
+        prompt = `Lifestyle product photography of "${productName}" organic packaged food. The package is prominently centered as the hero. Clean minimal setting: white marble surface or light wooden table, soft natural side lighting, one or two complementary natural ingredients subtly in background (blurred). Square format 1:1. High resolution, photorealistic, no text overlays, no watermarks, no logos added by AI.`;
+    } else {
+        // Produto fresco (verdura, legume, fruta): photo limpa e direta
+        prompt = `Clean product photography of fresh organic "${productName}". The vegetable/fruit is the clear hero, prominently centered, filling most of the frame. Pure white or very light neutral background. Natural studio lighting, sharp focus, vibrant natural colors. No packaging, no props, no clutter. Square format 1:1. High resolution, photorealistic, appetizing, no text, no watermarks.`;
+    }
 
     try {
         const response = await fetch('/api/generate-image', {
