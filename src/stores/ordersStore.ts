@@ -217,7 +217,10 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
                         category: 'Operacional', // Adjust category if needed
                         due_date: new Date().toISOString(),
                         status: 'pending',
-                        payment_method: 'pix'
+                        payment_method: 'pix',
+                        supplier: null,
+                        payment_date: null,
+                        proof_url: null
                     });
                 } catch (freightErr) {
                     console.error('Failed to auto-generate freight expense:', freightErr);
