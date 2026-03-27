@@ -6,6 +6,7 @@ export interface Product {
     id: string;
     internal_code: string;
     supplier_code: string | null;
+    supplier_name: string | null;
     name: string;
     description: string | null;
     price: number;
@@ -14,6 +15,7 @@ export interface Product {
     category: string;
     stock_qty: number;
     is_active: boolean;
+    is_packaged: boolean;
     show_in_catalog: boolean;
     feature_badge: 'none' | 'highlight' | 'offer';
     created_at: string;

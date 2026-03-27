@@ -144,6 +144,7 @@ Regras:
 export async function generateProductImage(
     productName: string,
     category: string,
+    isPackaged: boolean = false,
     scenario?: string,
     existingImageUrl?: string,
     description?: string // Add description parameter
@@ -153,12 +154,8 @@ export async function generateProductImage(
     if (!rateCheck.allowed) {
         throw new Error(rateCheck.reason);
     }
-
-    // Usando import dinâmico para evitar dependências circulares caso existam no futuro, embora útil. 
-    // Ou podemos trazer direto do local scope, mas como é um proxy import, vamos importar nativamente do Utils
-    const { isProductPackaged } = await import('@/lib/utils');
     
-    if (isProductPackaged(productName, category)) {
+    if (isPackaged) {
         throw new Error('A IA de geração de imagem está desativada para produtos de empresas/embalados para evitar alucinações (como inventar falsas embalagens). Utilize a imagem oficial do fornecedor.');
     }
 

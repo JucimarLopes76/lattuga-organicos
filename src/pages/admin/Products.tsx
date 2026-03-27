@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { generateProductDescription, generateProductImage, canGenerateImage, getRemainingGenerations } from '@/services/ai';
 import { useProductsStore } from '@/stores/productsStore';
-import { formatCurrency, cn, isProductPackaged } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { Modal } from '@/components/ui/Modal';
@@ -53,6 +53,8 @@ export default function Products() {
     const [formImageUrl, setFormImageUrl] = useState('');
     const [formShowCatalog, setFormShowCatalog] = useState(true);
     const [formSupplierCode, setFormSupplierCode] = useState('');
+    const [formSupplierName, setFormSupplierName] = useState('');
+    const [formIsPackaged, setFormIsPackaged] = useState(false);
     const [formFeatureBadge, setFormFeatureBadge] = useState<'none'|'highlight'|'offer'>('none');
     const [saving, setSaving] = useState(false);
     const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
@@ -60,7 +62,7 @@ export default function Products() {
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
     // Computed properties for the active form
-    const isPackagedItem = isProductPackaged(formName, formCategory);
+    const isPackagedItem = formIsPackaged;
 
     // Compute next internal code for new products
     const nextInternalCode = String(
@@ -89,6 +91,8 @@ export default function Products() {
         setFormImageUrl('');
         setFormShowCatalog(true);
         setFormSupplierCode('');
+        setFormSupplierName('');
+        setFormIsPackaged(false);
         setFormFeatureBadge('none');
         setFormImageScenario('');
         setShowModal(true);
@@ -106,6 +110,8 @@ export default function Products() {
         setFormImageUrl(p.image_url || '');
         setFormShowCatalog(p.show_in_catalog);
         setFormSupplierCode(p.supplier_code || '');
+        setFormSupplierName(p.supplier_name || '');
+        setFormIsPackaged(p.is_packaged || false);
         setFormFeatureBadge(p.feature_badge || 'none');
         setFormImageScenario('');
         setShowModal(true);
@@ -124,6 +130,8 @@ export default function Products() {
                 image_url: formImageUrl || null,
                 show_in_catalog: formShowCatalog,
                 supplier_code: formSupplierCode || null,
+                supplier_name: formSupplierName || null,
+                is_packaged: formIsPackaged,
                 feature_badge: formFeatureBadge,
             });
         } else {
@@ -138,6 +146,8 @@ export default function Products() {
                 is_active: true,
                 show_in_catalog: formShowCatalog,
                 supplier_code: formSupplierCode || null,
+                supplier_name: formSupplierName || null,
+                is_packaged: formIsPackaged,
                 feature_badge: formFeatureBadge,
             });
         }
@@ -177,7 +187,7 @@ export default function Products() {
 
         setIsGeneratingImage(true);
         try {
-            const imageUrl = await generateProductImage(formName, formCategory, formImageScenario || undefined, formImageUrl || undefined);
+            const imageUrl = await generateProductImage(formName, formCategory, formIsPackaged, formImageScenario || undefined, formImageUrl || undefined);
             setFormImageUrl(imageUrl);
         } catch (error: any) {
             alert(error.message || 'Erro ao gerar imagem com IA');
@@ -313,8 +323,8 @@ export default function Products() {
                                         <td className="px-4 py-3">
                                             <div className="flex flex-col">
                                                 <span className="text-xs font-bold text-brand-700 font-mono">{p.internal_code}</span>
-                                                {p.supplier_code && (
-                                                    <span className="text-[10px] text-gray-400">{p.supplier_code}</span>
+                                                {(p.supplier_name || p.supplier_code) && (
+                                                    <span className="text-[10px] text-gray-400">{p.supplier_name || p.supplier_code}</span>
                                                 )}
                                             </div>
                                         </td>
@@ -343,7 +353,7 @@ export default function Products() {
                                                 <span className="px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-medium w-fit">
                                                     {p.category}
                                                 </span>
-                                                {isProductPackaged(p.name, p.category) ? (
+                                                {p.is_packaged ? (
                                                     <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded w-fit uppercase font-bold tracking-wider" title="Produto Industrializado / Empresa">Embalado</span>
                                                 ) : (
                                                     <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded w-fit uppercase font-bold tracking-wider" title="Natural / Fresco">In Natura</span>
@@ -436,7 +446,7 @@ export default function Products() {
                                     <div className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
                                         <span>{p.category}</span>
                                         <span>·</span>
-                                        {isProductPackaged(p.name, p.category) ? (
+                                        {p.is_packaged ? (
                                             <span className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded uppercase font-bold tracking-widest">Embalado</span>
                                         ) : (
                                             <span className="text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded uppercase font-bold tracking-widest">In Natura</span>

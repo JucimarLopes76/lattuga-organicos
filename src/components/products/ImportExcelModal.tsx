@@ -31,6 +31,8 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                     description: row['Descrição'] || '',
                     category: row['Categoria'] || 'Frutas',
                     image_url: row['URL da Imagem'] || null,
+                    supplier_name: 'Fazenda Lattuga Organicos',
+                    is_packaged: false
                 })
             },
             {
@@ -41,6 +43,8 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                     description: row['Descrição'] || '',
                     category: row['Categoria Principal'] || 'Outros',
                     image_url: row['URL da Imagem'] || null,
+                    supplier_name: 'Fazenda Lattuga Organicos',
+                    is_packaged: false
                 })
             },
             {
@@ -51,6 +55,8 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                     description: '', // Korin may not have description
                     category: row['Categoria Principal'] || 'Outros',
                     image_url: row['URL da Imagem'] || null,
+                    supplier_name: 'Korin',
+                    is_packaged: true
                 })
             },
             {
@@ -61,6 +67,8 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                     description: '', // Native may not have description
                     category: row['Categoria'] || 'Outros',
                     image_url: row['URL da Imagem'] || null,
+                    supplier_name: 'Native',
+                    is_packaged: true
                 })
             }
         ];
@@ -129,6 +137,8 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                     cost_price: 0,
                     stock_qty: 0, // Manual as per user spec
                     image_url: p.image_url,
+                    supplier_name: p.supplier_name,
+                    is_packaged: p.is_packaged,
                     is_active: true,
                     show_in_catalog: true,
                     feature_badge: 'none'

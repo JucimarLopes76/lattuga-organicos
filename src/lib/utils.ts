@@ -66,9 +66,3 @@ export function generateOrderSummary(
     return msg;
 }
 
-export function isProductPackaged(productName: string, category: string): boolean {
-    const FRESH_CATEGORIES = ['Verduras', 'Legumes', 'Frutas'];
-    const PACKAGED_KEYWORDS = /korin|native|orgânic[ao]|mãe terra|taeq|jasmine|vitao|vitalin|bem estar|qualitá/i;
-    const isFreshProduce = FRESH_CATEGORIES.includes(category) && !PACKAGED_KEYWORDS.test(productName);
-    return !isFreshProduce || PACKAGED_KEYWORDS.test(productName);
-}
