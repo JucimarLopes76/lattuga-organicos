@@ -139,6 +139,34 @@ Regras:
     }
 }
 
+// ─── Translator Helper (Gemini) ──────────────────────────────────────────────
+
+async function translateToEnglish(productName: string): Promise<string> {
+    if (!GEMINI_API_KEY) return productName; // Fallback se não tiver chave
+    try {
+        const response = await fetch(
+            `${GEMINI_API_URL}/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: `Translate the following Brazilian food/produce name to English. Return ONLY the translation, nothing else. Example: Abacate -> Avocado. Abobrinha -> Zucchini. Name: "${productName}"`
+                        }]
+                    }]
+                })
+            }
+        );
+        if (!response.ok) return productName;
+        const data = await response.json();
+        const translation = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || productName;
+        return translation.replace(/[^a-zA-Z\s\-]/g, ''); // Limpa qualquer aspas extra
+    } catch {
+        return productName;
+    }
+}
+
 // ─── Product Image Generation (via proxy serverless /api/generate-image) ──────
 
 export async function generateProductImage(
@@ -159,18 +187,35 @@ export async function generateProductImage(
         throw new Error('A IA de geração de imagem está desativada para produtos de empresas/embalados para evitar alucinações (como inventar falsas embalagens). Utilize a imagem oficial do fornecedor.');
     }
 
-    const baseDesc = description ? ` Characteristics: ${description}.` : '';
-    const baseScen = scenario ? ` Background/Scenario: ${scenario}.` : ' Background: perfectly clean white minimalist studio background.';
+    const baseDesc = description ? ` Context details: ${description}` : '';
+    const baseScen = scenario ? ` Background setup: ${scenario}` : '';
     
-    // Limpar o nome do produto para a IA não se confundir com palavras como "Orgânica", "(kg)", "Maço", etc.
+    // Limpar o nome do produto para a IA não se confundir com palavras adicionais
     const cleanName = productName
         .replace(/orgânic[ao]s?/ig, '')
         .replace(/\(.*\)/g, '')
         .replace(/\b(kg|maço|bandeja|g|ml|litro|peça|dúzia|unidade)\b/ig, '')
         .trim();
 
-    // Prompt curto e otimizado para o FLUX-1.1-pro, usando inglês claro e focando em fotografia e-commerce
-    const prompt = `Professional e-commerce macro studio photography of a fresh ${cleanName}.${baseDesc}${baseScen} High end commercial food photography, sharp focus, ultra realistic, highly detailed, vibrant, appetizing. No text, no packaging, isolated product.`;
+    // Fundamental: Traduzir para o inglês para a IA (FLUX) saber exatamente a biologia do alimento
+    const translatedName = await translateToEnglish(cleanName);
+
+    // Prompt fornecido e homologado para alta conversão de fotografia
+    const prompt = `Ultra photorealistic image of fresh ${translatedName}, perfectly clean and visually appealing, with vibrant natural colors and realistic textures.${baseDesc}
+
+Placed in an attractive and modern composition suitable for e-commerce, with soft natural lighting, subtle shadows, and a premium aesthetic.
+
+Background: clean, minimal, and slightly blurred (light neutral tones or natural kitchen/organic environment), enhancing the product as the main focus.${baseScen}
+
+Style: high-end food photography, shot with a professional DSLR camera, 50mm lens, shallow depth of field, sharp focus on the product.
+
+Details: visible freshness (water droplets, natural imperfections), rich texture, realistic color grading, no artificial look.
+
+Framing: centered or slightly off-center composition, balanced and visually pleasing, with negative space for branding if needed.
+
+Resolution: 4K, ultra-detailed, studio quality.
+
+No text, no watermark, no logo.`;
 
     try {
         const response = await fetch('/api/generate-image', {
