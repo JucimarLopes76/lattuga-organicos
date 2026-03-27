@@ -165,7 +165,7 @@ export async function generateProductImage(
     // Prompt altamente restritivo para evitar embalagens alucinadas para produtos In Natura e seguir a regra de texto sem palavras
     const prompt = `Gere uma fotografia hiper-realista e profissional para e-commerce do seguinte alimento natural e fresco: "${productName}".
 
-[CRITICAL INSTRUCTION TO AI: Identify the botanical species of "${productName}" (e.g. if Portuguese "Abacaxi", it means Pineapple). Generate a photorealistic macro shot of this EXACT real-world fruit/vegetable. DO NOT invent hybrid fruits.]
+[CRITICAL INSTRUCTION TO AI: Identify the botanical species of "${productName}" (translate its Portuguese name mentally to English to ensure flawless accuracy). Generate a photorealistic macro shot of this EXACT real-world fruit/vegetable. DO NOT invent hybrid fruits.]
 
 ${baseDesc}${baseScen}
 
