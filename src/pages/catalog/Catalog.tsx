@@ -198,15 +198,15 @@ export default function Catalog() {
                     />
                 </div>
 
-                <div className="flex flex-wrap gap-2 pb-2">
+                <div className="flex overflow-x-auto gap-2 pb-3 pt-1 -mx-4 px-4 md:mx-0 md:px-0 custom-scrollbar snap-x scroll-smooth">
                     {categories.map((cat) => (
                         <button
                             key={cat}
                             onClick={() => setActiveCategory(cat)}
                             className={cn(
-                                'px-5 py-2.5 rounded-2xl text-sm font-medium whitespace-nowrap transition-all cursor-pointer',
+                                'flex-shrink-0 snap-start px-5 py-2.5 rounded-2xl text-sm font-medium whitespace-nowrap transition-all cursor-pointer',
                                 activeCategory === cat
-                                    ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/20'
+                                    ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20 scale-[1.02]'
                                     : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                             )}
                         >
