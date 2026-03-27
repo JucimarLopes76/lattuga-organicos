@@ -208,7 +208,22 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
             // 4. Deduct stock immediately for ALL orders
             await decrementStock(items);
 
-
+            // 5. Automatically create a Freight expense if applicable
+            if (orderData.delivery_method === 'delivery' && orderData.surcharge_amount > 0) {
+                try {
+                    await useFinanceStore.getState().addExpense({
+                        description: `Frete a Pagar - Pedido #${orderId.slice(0, 8)}`,
+                        amount: orderData.surcharge_amount,
+                        category: 'Operacional', // Adjust category if needed
+                        due_date: new Date().toISOString(),
+                        status: 'pending',
+                        payment_method: 'pix'
+                    });
+                } catch (freightErr) {
+                    console.error('Failed to auto-generate freight expense:', freightErr);
+                    // Non-blocking, the order still succeeded
+                }
+            }
 
             return orderId;
         } catch (err) {

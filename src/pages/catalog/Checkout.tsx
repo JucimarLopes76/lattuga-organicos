@@ -17,6 +17,7 @@ import { useOnlineCartStore } from '@/stores/onlineCartStore';
 import { useOnlineSessionStore } from '@/stores/onlineSessionStore';
 import { useCustomersStore } from '@/stores/customersStore';
 import { useOrdersStore } from '@/stores/ordersStore';
+import { useDeliveryZonesStore } from '@/stores/deliveryZonesStore';
 import { formatCurrency } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Input';
@@ -81,6 +82,12 @@ export default function Checkout() {
     const findCustomerByPhone = useCustomersStore((s) => s.findCustomerByPhone);
     const createCustomer = useCustomersStore((s) => s.createCustomer);
     const addOrder = useOrdersStore((s) => s.addOrder);
+    const { zones, fetchZones } = useDeliveryZonesStore();
+    
+    useEffect(() => {
+        fetchZones();
+    }, [fetchZones]);
+    
     const [step, setStep] = useState<Step>('info');
     const [loading, setLoading] = useState(false);
 
@@ -100,6 +107,13 @@ export default function Checkout() {
     const [cepError, setCepError] = useState('');
 
     const formattedAddress = formatAddressStr(addressForm);
+
+    // Calculate Freight
+    const activeZone = deliveryMethod === 'delivery' 
+        ? zones.find(z => z.active && z.neighborhood.toLowerCase() === addressForm.bairro.toLowerCase() && z.city.toLowerCase() === addressForm.cidade.toLowerCase())
+        : null;
+    const deliveryFee = activeZone ? activeZone.fee : 0;
+    const isBairroValid = deliveryMethod !== 'delivery' || !!activeZone;
 
     // Auto-update session when fields change
     useEffect(() => {
@@ -175,9 +189,9 @@ export default function Checkout() {
                 status: 'pending',
                 delivery_method: deliveryMethod,
                 payment_method: payNow ? 'pix' : paymentMethod,
-                total_amount: subtotal,
+                total_amount: subtotal + deliveryFee,
                 discount_amount: 0,
-                surcharge_amount: 0,
+                surcharge_amount: deliveryFee, // We leverage surcharge_amount for freight fee so it's itemized
                 delivery_address: deliveryMethod === 'delivery' ? formattedAddress : null,
             },
             items.map((i) => ({
@@ -445,14 +459,34 @@ export default function Checkout() {
                             {/* Bairro + Cidade */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-xs font-medium text-gray-700 mb-1">Bairro</label>
-                                    <input
-                                        type="text"
-                                        value={addressForm.bairro}
-                                        onChange={(e) => setAddressForm((p) => ({ ...p, bairro: e.target.value }))}
-                                        placeholder="Bairro"
-                                        className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none transition-all"
-                                    />
+                                    <label className={`block text-xs font-medium mb-1 ${!isBairroValid && addressForm.bairro ? 'text-red-600' : 'text-gray-700'}`}>Bairro</label>
+                                    {!isBairroValid && addressForm.bairro ? (
+                                        <select
+                                            className="w-full rounded-xl border border-red-500 bg-white px-3 py-3 text-sm focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:outline-none transition-all"
+                                            value={addressForm.bairro}
+                                            onChange={(e) => {
+                                                const sel = zones.find(z => z.neighborhood === e.target.value);
+                                                if(sel) {
+                                                    setAddressForm((p) => ({ ...p, bairro: sel.neighborhood, cidade: sel.city }));
+                                                } else {
+                                                    setAddressForm((p) => ({ ...p, bairro: e.target.value }));
+                                                }
+                                            }}
+                                        >
+                                            <option value="">Selecione um bairro...</option>
+                                            {zones.filter(z => z.active).map(z => (
+                                                <option key={z.id} value={z.neighborhood}>{z.neighborhood} - {z.city} ({formatCurrency(z.fee)})</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            type="text"
+                                            value={addressForm.bairro}
+                                            onChange={(e) => setAddressForm((p) => ({ ...p, bairro: e.target.value }))}
+                                            placeholder="Bairro"
+                                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none transition-all"
+                                        />
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-700 mb-1">Cidade</label>
@@ -465,6 +499,10 @@ export default function Checkout() {
                                     />
                                 </div>
                             </div>
+                            
+                            {!isBairroValid && addressForm.bairro && (
+                                <p className="text-xs text-red-500 font-medium">Ops! Parece que não entregamos neste bairro ou o nome está diferente. Por favor, escolha uma opção válida na lista acima.</p>
+                            )}
 
                             {/* Referência */}
                             <div>
@@ -492,7 +530,7 @@ export default function Checkout() {
                             onClick={() => setStep('payment')}
                             className="flex-1"
                             size="lg"
-                            disabled={deliveryMethod === 'delivery' && (!addressForm.logradouro || !addressForm.numero)}
+                            disabled={deliveryMethod === 'delivery' && (!addressForm.logradouro || !addressForm.numero || !isBairroValid)}
                         >
                             Continuar
                         </Button>
@@ -686,9 +724,21 @@ export default function Checkout() {
                                     </div>
                                 ))}
                             </div>
-                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between text-lg font-bold text-brand-700">
+                            <div className="mt-4 pt-4 border-t border-gray-100 space-y-2 text-sm text-gray-600">
+                                <div className="flex justify-between">
+                                    <span>Subtotal</span>
+                                    <span>{formatCurrency(subtotal)}</span>
+                                </div>
+                                {deliveryMethod === 'delivery' && (
+                                    <div className="flex justify-between">
+                                        <span>Frete</span>
+                                        <span>{formatCurrency(deliveryFee)}</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="mt-2 flex justify-between text-lg font-bold text-brand-700">
                                 <span>Total</span>
-                                <span>{formatCurrency(subtotal)}</span>
+                                <span>{formatCurrency(subtotal + deliveryFee)}</span>
                             </div>
                         </div>
                     </div>

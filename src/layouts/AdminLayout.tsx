@@ -10,6 +10,7 @@ import {
     X,
     Wallet,
     BellRing,
+    MapPin,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
@@ -22,6 +23,7 @@ const navItems = [
     { to: '/admin/pos', icon: ShoppingCart, label: 'PDV' },
     { to: '/admin/orders', icon: LayoutDashboard, label: 'Pedidos' },
     { to: '/admin/products', icon: Package, label: 'Produtos' },
+    { to: '/admin/delivery-zones', icon: MapPin, label: 'Zonas de Entrega' },
     { to: '/admin/finance', icon: Wallet, label: 'Financeiro' },
     { to: '/admin/customers', icon: Users, label: 'Clientes' },
     { to: '/admin/analytics', icon: BarChart3, label: 'Análises' },

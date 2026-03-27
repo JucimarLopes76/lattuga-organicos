@@ -137,3 +137,12 @@ export interface FinancialTransaction {
     status: string; // 'completed' | 'paid' | 'pending'
     original: Order | Expense; // Reference to original object
 }
+
+export interface DeliveryZone {
+    id: string;
+    city: string;
+    neighborhood: string;
+    fee: number;
+    active: boolean;
+    created_at: string;
+}

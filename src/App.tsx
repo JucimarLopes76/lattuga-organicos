@@ -21,6 +21,7 @@ const Products = lazy(() => import('@/pages/admin/Products'));
 const Customers = lazy(() => import('@/pages/admin/Customers'));
 const Analytics = lazy(() => import('@/pages/admin/Analytics'));
 const Finance = lazy(() => import('@/pages/admin/Finance'));
+const DeliveryZones = lazy(() => import('@/pages/admin/DeliveryZones'));
 
 // Fallback spinner while loading a code chunk
 const PageLoadingFallback = () => (
@@ -62,6 +63,7 @@ export default function App() {
                             <Route path="/admin/products" element={<Products />} />
                             <Route path="/admin/customers" element={<Customers />} />
                             <Route path="/admin/finance" element={<Finance />} />
+                            <Route path="/admin/delivery-zones" element={<DeliveryZones />} />
                             <Route path="/admin/analytics" element={<Analytics />} />
                         </Route>
                     </Route>
