@@ -19,6 +19,7 @@ interface ParsedProduct {
     cost_price: number;
     price: number;
     is_packaged: boolean;
+    image_url: string | null;
 }
 
 export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
@@ -39,7 +40,8 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
             "Preço de Custo (R$)",
             "Preço de Venda (R$)",
             "Fornecedor",
-            "Produto Embalado (Sim/Não)"
+            "Produto Embalado (Sim/Não)",
+            "URL da Imagem (Opcional)"
         ];
         
         const exampleRow = [
@@ -49,7 +51,8 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
             "4,50",
             "9,90",
             "Fazenda da Lattuga",
-            "Não"
+            "Não",
+            "https://exemplo.com/foto.jpg"
         ];
         
         const ws = xlsx.utils.aoa_to_sheet([headers, exampleRow]);
@@ -63,6 +66,7 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
             { wch: 20 }, // Preço de Venda (R$)
             { wch: 25 }, // Fornecedor
             { wch: 25 }, // Produto Embalado (Sim/Não)
+            { wch: 40 }, // URL da Imagem
         ];
 
         const wb = xlsx.utils.book_new();
@@ -119,7 +123,8 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                         supplier_name: row['Fornecedor'] ? String(row['Fornecedor']).trim() : '',
                         cost_price: parseMoney(row['Preço de Custo (R$)']),
                         price: parseMoney(row['Preço de Venda (R$)']),
-                        is_packaged
+                        is_packaged,
+                        image_url: row['URL da Imagem (Opcional)'] ? String(row['URL da Imagem (Opcional)']).trim() : null
                     });
                 });
 
@@ -184,7 +189,7 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                     price: p.price,
                     cost_price: p.cost_price,
                     stock_qty: 0, // Admin needs to map inventory manually later
-                    image_url: null,
+                    image_url: p.image_url,
                     supplier_name: p.supplier_name,
                     is_packaged: p.is_packaged,
                     is_active: true,
@@ -241,7 +246,13 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                                 <ol className="list-decimal ml-4 space-y-2 mt-2 text-gray-700">
                                     <li>Mantenha o padrão e primeiro abaixe nossa Planilha Modelo Lattuga.</li>
                                     <li>Preencha a planilha no Excel/Google Sheets e não altere a linha verde de cabeçalhos.</li>
-                                    <li>Arraste o arquivo ou clique no botão de Upload abaixo.</li>
+                                    <li>
+                                        Na coluna opcional <b>URL da Imagem</b>, você pode colocar fotos prontas ou deixar vazio para usar a IA depois. <br/>
+                                        <span className="text-xs text-brand-600 block mt-1">
+                                            💡 <i>Dica: Encontre a imagem do produto na internet, clique nela com o botão direito e escolha <b>"Copiar endereço da imagem"</b> ou <b>"Copiar link da imagem"</b> (não baixe para o PC).</i>
+                                        </span>
+                                    </li>
+                                    <li>Arraste o arquivo salvo ou clique no botão de Upload abaixo.</li>
                                 </ol>
                                 <Button 
                                     variant="outline" 
