@@ -31,7 +31,20 @@ export default async function handler(req: Request) {
     const sfData = await sfRes.json()
     const imageUrl = sfData.images?.[0]?.url ?? null
 
-    return new Response(JSON.stringify({ imageUrl }), {
+    if (!imageUrl) {
+      return new Response(JSON.stringify({ error: 'SiliconFlow não retornou imagem. Verifique seu saldo.' }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Download server-side para evitar bloqueio CORS do CDN no browser
+    const imgRes = await fetch(imageUrl)
+    if (!imgRes.ok) throw new Error(`Falha ao baixar imagem do CDN: ${imgRes.status}`)
+    const imgBuffer = await imgRes.arrayBuffer()
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)))
+
+    return new Response(JSON.stringify({ imageBase64: base64 }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
 

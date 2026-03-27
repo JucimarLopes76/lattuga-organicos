@@ -171,16 +171,17 @@ export async function generateProductImage(
         }
 
         const data = await response.json();
-        const imageUrl = data.imageUrl;
+        const imageBase64 = data.imageBase64;
 
-        if (!imageUrl) {
+        if (!imageBase64) {
             throw new Error('SiliconFlow não retornou imagem. Verifique seu saldo.');
         }
 
-        // Baixa e sobe no Supabase Storage
-        const imgResponse = await fetch(imageUrl);
-        if (!imgResponse.ok) throw new Error('Falha ao baixar imagem gerada.');
-        const blob = await imgResponse.blob();
+        // Converte base64 → Blob para upload no Supabase
+        const byteChars = atob(imageBase64);
+        const byteArr = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+        const blob = new Blob([byteArr], { type: 'image/jpeg' });
 
         const filePath = buildSeoFilename(productName, category);
 
