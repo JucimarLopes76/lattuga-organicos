@@ -154,9 +154,31 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
     },
 
     deleteProduct: async (id) => {
+        // First check for order items or purchases
+        const { data: orderItems, error: idxErr } = await supabase
+            .from('order_items')
+            .select('id')
+            .eq('product_id', id)
+            .limit(1);
+
+        const { data: purchases, error: purErr } = await supabase
+            .from('product_purchases')
+            .select('id')
+            .eq('product_id', id)
+            .limit(1);
+
+        if (idxErr || purErr) {
+            throw new Error('Erro ao verificar histórico do produto.');
+        }
+
+        if ((orderItems && orderItems.length > 0) || (purchases && purchases.length > 0)) {
+            throw new Error('Não é possível excluir o produto pois ele já possui pedidos ou histórico de compras registrados. Por favor, apenas marque-o como "Inativo".');
+        }
+
         // Optimistic remove
         set((state) => ({
             products: state.products.filter((p) => p.id !== id),
+            categories: extractCategories(state.products.filter((p) => p.id !== id)),
         }));
 
         const { error } = await supabase
@@ -167,6 +189,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         if (error) {
             console.error('Error deleting product:', error);
             get().fetchProducts();
+            throw new Error('Falha ao deletar o produto no banco de dados.');
         }
     },
 

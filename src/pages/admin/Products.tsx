@@ -52,6 +52,7 @@ export default function Products() {
     const [formStock, setFormStock] = useState('0');
     const [formImageUrl, setFormImageUrl] = useState('');
     const [formShowCatalog, setFormShowCatalog] = useState(true);
+    const [formIsActive, setFormIsActive] = useState(true);
     const [formSupplierCode, setFormSupplierCode] = useState('');
     const [formSupplierName, setFormSupplierName] = useState('');
     const [formIsPackaged, setFormIsPackaged] = useState(false);
@@ -90,6 +91,7 @@ export default function Products() {
         setFormStock('0');
         setFormImageUrl('');
         setFormShowCatalog(true);
+        setFormIsActive(true);
         setFormSupplierCode('');
         setFormSupplierName('');
         setFormIsPackaged(false);
@@ -109,6 +111,7 @@ export default function Products() {
         setFormStock(p.stock_qty.toString());
         setFormImageUrl(p.image_url || '');
         setFormShowCatalog(p.show_in_catalog);
+        setFormIsActive(p.is_active);
         setFormSupplierCode(p.supplier_code || '');
         setFormSupplierName(p.supplier_name || '');
         setFormIsPackaged(p.is_packaged || false);
@@ -129,6 +132,7 @@ export default function Products() {
                 stock_qty: parseInt(formStock) || 0,
                 image_url: formImageUrl || null,
                 show_in_catalog: formShowCatalog,
+                is_active: formIsActive,
                 supplier_code: formSupplierCode || null,
                 supplier_name: formSupplierName || null,
                 is_packaged: formIsPackaged,
@@ -143,8 +147,8 @@ export default function Products() {
                 category: formCategory,
                 stock_qty: parseInt(formStock) || 0,
                 image_url: formImageUrl || null,
-                is_active: true,
                 show_in_catalog: formShowCatalog,
+                is_active: formIsActive,
                 supplier_code: formSupplierCode || null,
                 supplier_name: formSupplierName || null,
                 is_packaged: formIsPackaged,
@@ -204,9 +208,13 @@ export default function Products() {
         updateProduct(p.id, { is_active: !p.is_active });
     };
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (confirm('Tem certeza que deseja excluir este produto?')) {
-            deleteProduct(id);
+            try {
+                await deleteProduct(id);
+            } catch (err: any) {
+                alert(err.message || 'Erro ao excluir o produto.');
+            }
         }
     };
 
@@ -656,26 +664,49 @@ export default function Products() {
                             </div>
                         </div>
                     </div>
-                    <label className="flex items-center gap-3 cursor-pointer">
-                        <button
-                            type="button"
-                            onClick={() => setFormShowCatalog(!formShowCatalog)}
-                            className={cn(
-                                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer',
-                                formShowCatalog ? 'bg-brand-600' : 'bg-gray-300'
-                            )}
-                        >
-                            <span
+                    <div className="flex flex-col sm:flex-row gap-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <button
+                                type="button"
+                                onClick={() => setFormShowCatalog(!formShowCatalog)}
                                 className={cn(
-                                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
-                                    formShowCatalog ? 'translate-x-6' : 'translate-x-1'
+                                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer',
+                                    formShowCatalog ? 'bg-brand-600' : 'bg-gray-300'
                                 )}
-                            />
-                        </button>
-                        <span className="text-sm font-medium text-gray-700">
-                            Exibir no catálogo online
-                        </span>
-                    </label>
+                            >
+                                <span
+                                    className={cn(
+                                        'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                        formShowCatalog ? 'translate-x-6' : 'translate-x-1'
+                                    )}
+                                />
+                            </button>
+                            <span className="text-sm font-medium text-gray-700">
+                                Exibir no catálogo online
+                            </span>
+                        </label>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <button
+                                type="button"
+                                onClick={() => setFormIsActive(!formIsActive)}
+                                className={cn(
+                                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer',
+                                    formIsActive ? 'bg-green-600' : 'bg-gray-300'
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                                        formIsActive ? 'translate-x-6' : 'translate-x-1'
+                                    )}
+                                />
+                            </button>
+                            <span className="text-sm font-medium text-gray-700">
+                                Produto Ativo (Disponível)
+                            </span>
+                        </label>
+                    </div>
 
                     {/* Histórico de Aquisições (Only on Edit) */}
                     {editingProduct && (
