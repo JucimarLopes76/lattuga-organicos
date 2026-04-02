@@ -26,6 +26,7 @@ import type { Product } from '@/types';
 export default function Products() {
     const {
         products,
+        categories,
         isLoading,
         fetchProducts,
         updateProduct,
@@ -598,7 +599,7 @@ export default function Products() {
                                 placeholder="Selecione ou digite uma nova..."
                             />
                             <datalist id="categories-list">
-                                {categories.filter(c => c !== 'Todas').map(cat => (
+                                {categories.filter((c: string) => c !== 'Todas').map((cat: string) => (
                                     <option key={cat} value={cat} />
                                 ))}
                             </datalist>
