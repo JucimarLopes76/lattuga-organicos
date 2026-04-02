@@ -13,6 +13,7 @@ interface ProductsState {
     createProduct: (product: Omit<Product, 'id' | 'internal_code' | 'created_at' | 'updated_at'>) => Promise<void>;
     deleteProduct: (id: string) => Promise<void>;
     seedMockProducts: () => Promise<void>;
+    bulkUpdateProducts: (updates: { id: string; changes: Partial<Product> }[]) => Promise<void>;
 }
 
 function extractCategories(products: Product[]): string[] {
@@ -90,6 +91,22 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
             console.error('Error updating product:', error);
             // Revert by refetching
             get().fetchProducts();
+        }
+    },
+
+    bulkUpdateProducts: async (updates: { id: string; changes: Partial<Product> }[]) => {
+        set({ isLoading: true, error: null });
+        try {
+            const promises = updates.map((u) => 
+                supabase.from('products')
+                    .update({ ...u.changes, updated_at: new Date().toISOString() })
+                    .eq('id', u.id)
+            );
+            await Promise.all(promises);
+            get().fetchProducts();
+        } catch (err: any) {
+            console.error('Failed to bulk update products:', err);
+            set({ isLoading: false, error: err.message });
         }
     },
 
