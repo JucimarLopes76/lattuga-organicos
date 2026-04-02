@@ -589,21 +589,20 @@ export default function Products() {
                                 { value: 'offer', label: 'Oferta da Semana' },
                             ]}
                         />
-                        <Select
-                            label="Categoria"
-                        value={formCategory}
-                        onChange={(e) => setFormCategory(e.target.value)}
-                        options={[
-                            { value: 'Verduras', label: 'Verduras' },
-                            { value: 'Legumes', label: 'Legumes' },
-                            { value: 'Frutas', label: 'Frutas' },
-                            { value: 'Proteínas', label: 'Proteínas' },
-                            { value: 'Mercearia', label: 'Mercearia' },
-                            { value: 'Bebidas', label: 'Bebidas' },
-                            { value: 'Padaria', label: 'Padaria' },
-                            { value: 'Laticínios', label: 'Laticínios' },
-                        ]}
-                    />
+                        <div>
+                            <Input
+                                label="Categoria"
+                                value={formCategory}
+                                onChange={(e) => setFormCategory(e.target.value)}
+                                list="categories-list"
+                                placeholder="Selecione ou digite uma nova..."
+                            />
+                            <datalist id="categories-list">
+                                {categories.filter(c => c !== 'Todas').map(cat => (
+                                    <option key={cat} value={cat} />
+                                ))}
+                            </datalist>
+                        </div>
                     </div>
                     <div className="space-y-3 p-4 bg-brand-50/50 rounded-xl border border-brand-100">
                         <h4 className="text-sm font-bold text-brand-900 flex items-center gap-2 mb-2">
