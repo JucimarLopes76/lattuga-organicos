@@ -26,7 +26,6 @@ import type { Product } from '@/types';
 export default function Products() {
     const {
         products,
-        categories,
         isLoading,
         fetchProducts,
         updateProduct,
@@ -39,6 +38,9 @@ export default function Products() {
     const { productPurchases, fetchProductHistory, isLoading: isLoadingHistory } = usePurchasesStore();
 
     const [search, setSearch] = useState('');
+    
+    // Derived categories
+    const categories = Array.from(new Set(products.map(p => p.category))).filter(Boolean);
     const [showModal, setShowModal] = useState(false);
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
@@ -599,7 +601,7 @@ export default function Products() {
                                 placeholder="Selecione ou digite uma nova..."
                             />
                             <datalist id="categories-list">
-                                {categories.filter((c: string) => c !== 'Todas').map((cat: string) => (
+                                {categories.filter(c => c !== 'Todas').map(cat => (
                                     <option key={cat} value={cat} />
                                 ))}
                             </datalist>
