@@ -21,8 +21,9 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
     const [isImporting, setIsImporting] = useState(false);
     const [progress, setProgress] = useState<string>('');
     const [error, setError] = useState<string>('');
-    const [result, setResult] = useState<{ totalFound: number, updated: number, created: number } | null>(null);
+    const [result, setResult] = useState<{ totalFound: number, updated: number, created: number, removed: number } | null>(null);
     const [parsedData, setParsedData] = useState<ParsedData | null>(null);
+    const [syncDeletions, setSyncDeletions] = useState(false);
     
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -199,10 +200,41 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                 await bulkCreateProducts(parsedData.creates);
             }
 
+            let removedCount = 0;
+            if (syncDeletions) {
+                setProgress('Sincronizando banco (removendo produtos ausentes)...');
+                const allExpectedIds = parsedData.updates.map(u => u.id);
+                const allExpectedNames = new Set(parsedData.creates.map(c => c.name.toLowerCase().trim()));
+                parsedData.updates.forEach(u => {
+                    if (u.changes.name) allExpectedNames.add(u.changes.name.toLowerCase().trim());
+                });
+
+                // Add current products names to expected to avoid deleting products that exist but have different ID
+                products.forEach(p => {
+                    if (allExpectedIds.includes(p.id)) allExpectedNames.add(p.name.toLowerCase().trim());
+                });
+
+                const { data: dbProds } = await supabase.from('products').select('id, name');
+                const toRemove = dbProds?.filter(p => !allExpectedIds.includes(p.id) && !allExpectedNames.has(p.name.toLowerCase().trim())) || [];
+
+                for (const p of toRemove) {
+                    try {
+                        const { error: delErr } = await supabase.from('products').delete().eq('id', p.id);
+                        if (delErr) throw delErr;
+                        removedCount++;
+                    } catch (err) {
+                        // Fallback: inativar se não puder excluir (tem pedidos)
+                        await supabase.from('products').update({ is_active: false, show_in_catalog: false }).eq('id', p.id);
+                        removedCount++;
+                    }
+                }
+            }
+
             setResult({
                 totalFound: parsedData.updates.length + parsedData.creates.length,
                 updated: parsedData.updates.length,
-                created: parsedData.creates.length
+                created: parsedData.creates.length,
+                removed: removedCount
             });
             await fetchProducts(); 
         } catch (err: any) {
@@ -283,9 +315,26 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                             <CheckCircle2 size={28} />
                             <h3 className="font-bold text-xl text-gray-900">Planilha Lida com Sucesso!</h3>
                         </div>
-                        <p className="text-gray-600 mb-6 text-sm">
+                        <p className="text-gray-600 mb-4 text-sm">
                             Encontramos <strong className="text-gray-900">{parsedData.updates.length}</strong> produtos para atualizar e <strong className="text-gray-900">{parsedData.creates.length}</strong> novos produtos para criar no banco de sistema. Ao prosseguir, o banco refletirá as alterações feitas na planilha silênciosamente, mantendo o controle total da plataforma.
                         </p>
+
+                        <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 mb-6 mt-4">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                                <input 
+                                    type="checkbox" 
+                                    checked={syncDeletions}
+                                    onChange={(e) => setSyncDeletions(e.target.checked)}
+                                    className="mt-1 w-5 h-5 rounded border-orange-300 text-orange-600 focus:ring-orange-500"
+                                />
+                                <div>
+                                    <p className="font-bold text-orange-900 text-sm">Espelhamento Exato (Limpeza)</p>
+                                    <p className="text-xs text-orange-700 mt-1">
+                                        Se marcado, qualquer produto que estiver no sistema mas <strong>não estiver nesta planilha</strong> será excluído (ou inativado). Use com cuidado para limpar o sistema de produtos antigos.
+                                    </p>
+                                </div>
+                            </label>
+                        </div>
 
                         <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
                             <Button variant="ghost" onClick={handleClose} className="text-gray-500 hover:text-gray-700" disabled={isImporting}>
@@ -305,7 +354,7 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                         </div>
                         <h3 className="text-2xl font-bold text-gray-900">Atualização Completa!</h3>
                         <p className="text-gray-600 text-sm max-w-sm mx-auto">
-                            Foram alterados <strong className="text-gray-900">{result.updated}</strong> produtos e criados <strong className="text-gray-900">{result.created}</strong> novos produtos com sucesso!
+                            Foram alterados <strong className="text-gray-900">{result.updated}</strong> produtos, criados <strong className="text-gray-900">{result.created}</strong> e removidos <strong className="text-gray-900">{result.removed}</strong> produtos com sucesso!
                         </p>
                         <Button 
                             className="mt-6 w-full max-w-[200px]" 
