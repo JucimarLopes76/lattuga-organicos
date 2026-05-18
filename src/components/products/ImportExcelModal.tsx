@@ -103,10 +103,21 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                 const creates: Omit<Product, 'id' | 'internal_code' | 'created_at' | 'updated_at'>[] = [];
                 
                 data.forEach((row) => {
-                    const id = row['ID_SISTEMA_NAO_ALTERAR'] || row['CODIGO'];
-                    const name = row['Nome do Produto'] || row['PRODUTO'];
+                    const rawId = row['ID_SISTEMA_NAO_ALTERAR'] || row['CODIGO'];
+                    const rawName = row['Nome do Produto'] || row['PRODUTO'];
                     
-                    if (!name && !id) return; // Skip entirely empty rows
+                    if (!rawName && !rawId) return; // Skip entirely empty rows
+
+                    const toTitleCase = (str: string) => {
+                        if (!str) return '';
+                        return str.toLowerCase().split(' ').map(word => {
+                            if (word.length === 0) return word;
+                            return word.charAt(0).toUpperCase() + word.slice(1);
+                        }).join(' ');
+                    };
+
+                    const id = String(rawId || '').trim();
+                    const name = toTitleCase(String(rawName || '').trim());
 
                     const parseMoney = (val: any) => {
                         if (typeof val === 'number') return val;
@@ -136,9 +147,9 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                     if (id && String(id).trim() !== '') {
                         // It's an update
                         updates.push({
-                            id: String(id).trim(),
+                            id: id,
                             changes: {
-                                ...(name ? { name: String(name).trim() } : {}),
+                                ...(name ? { name: name } : {}),
                                 ...(category ? { category } : {}),
                                 ...(description ? { description } : {}),
                                 ...(supplier_name ? { supplier_name } : {}),
@@ -153,7 +164,7 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                     } else if (name) {
                         // It's a create
                         creates.push({
-                            name: String(name).trim(),
+                            name: name,
                             category: category || 'Sem Categoria',
                             description,
                             supplier_code: null,
