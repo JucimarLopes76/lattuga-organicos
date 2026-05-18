@@ -116,8 +116,16 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                         }).join(' ');
                     };
 
-                    const id = String(rawId || '').trim();
+                    let id = String(rawId || '').trim();
                     const name = toTitleCase(String(rawName || '').trim());
+
+                    // Se não tem ID na planilha, tenta achar no banco pelo NOME para evitar duplicação
+                    if (!id && name) {
+                        const existingMatch = products.find(p => p.name.toLowerCase().trim() === name.toLowerCase().trim());
+                        if (existingMatch) {
+                            id = existingMatch.id;
+                        }
+                    }
 
                     const parseMoney = (val: any) => {
                         if (typeof val === 'number') return val;
@@ -214,20 +222,20 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
 
             let removedCount = 0;
             if (syncDeletions) {
-                setProgress('Sincronizando banco (removendo produtos ausentes)...');
-                const allExpectedIds = parsedData.updates.map(u => u.id);
-                const allExpectedNames = new Set(parsedData.creates.map(c => c.name.toLowerCase().trim()));
-                parsedData.updates.forEach(u => {
-                    if (u.changes.name) allExpectedNames.add(u.changes.name.toLowerCase().trim());
-                });
-
-                // Add current products names to expected to avoid deleting products that exist but have different ID
-                products.forEach(p => {
-                    if (allExpectedIds.includes(p.id)) allExpectedNames.add(p.name.toLowerCase().trim());
-                });
+                setProgress('Sincronizando banco (removendo produtos ausentes e duplicados)...');
+                const expectedUpdateIds = new Set(parsedData.updates.map(u => u.id));
+                const expectedNewNames = new Set(parsedData.creates.map(c => c.name.toLowerCase().trim()));
 
                 const { data: dbProds } = await supabase.from('products').select('id, name');
-                const toRemove = dbProds?.filter((p: any) => !allExpectedIds.includes(p.id) && !allExpectedNames.has(p.name.toLowerCase().trim())) || [];
+                
+                // Remove qualquer produto cujo ID não foi atualizado 
+                // E cujo nome não foi acabou de ser criado.
+                // Isso elimina duplicatas antigas e produtos que saíram do Excel.
+                const toRemove = dbProds?.filter((p: any) => {
+                    const isUpdated = expectedUpdateIds.has(p.id);
+                    const isJustCreated = expectedNewNames.has(p.name.toLowerCase().trim());
+                    return !isUpdated && !isJustCreated;
+                }) || [];
 
                 for (const p of toRemove) {
                     try {
