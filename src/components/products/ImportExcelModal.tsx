@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import * as xlsx from 'xlsx';
 import { useProductsStore } from '@/stores/productsStore';
+import { supabase } from '@/lib/supabase';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { FileSpreadsheet, CheckCircle2, Download, Upload, AlertCircle } from 'lucide-react';
@@ -215,7 +216,7 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                 });
 
                 const { data: dbProds } = await supabase.from('products').select('id, name');
-                const toRemove = dbProds?.filter(p => !allExpectedIds.includes(p.id) && !allExpectedNames.has(p.name.toLowerCase().trim())) || [];
+                const toRemove = dbProds?.filter((p: any) => !allExpectedIds.includes(p.id) && !allExpectedNames.has(p.name.toLowerCase().trim())) || [];
 
                 for (const p of toRemove) {
                     try {
