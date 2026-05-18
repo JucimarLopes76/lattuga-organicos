@@ -140,7 +140,13 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                         return strVal.includes('sim') || strVal === 's' || strVal === 'true';
                     };
 
-                    const category = String(row['Categoria'] || row['CATEGORIA'] || '').trim();
+                    let category = String(row['Categoria'] || row['CATEGORIA'] || '').trim();
+                    if (category.toUpperCase() === 'PÃOS' || category.toUpperCase() === 'PAOS' || category.toUpperCase() === 'PÃES') {
+                        category = 'PÃES';
+                    } else if (category.toUpperCase().includes('AÇUCAR') || category.toUpperCase().includes('ACUCAR') || category.toUpperCase().includes('AÇÚCAR')) {
+                        category = 'AÇÚCAR E ADOÇANTES';
+                    }
+
                     const description = String(row['Descrição'] || row['DESCRIÇÃO'] || '').trim();
                     const supplier_name = String(row['Fornecedor'] || row['FORNECEDOR'] || '').trim();
                     const cost_price = parseMoney(row['Preço de Custo (R$)'] !== undefined ? row['Preço de Custo (R$)'] : row['CUSTO']);
