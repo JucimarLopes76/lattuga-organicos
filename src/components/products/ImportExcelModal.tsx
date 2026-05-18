@@ -30,45 +30,57 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
 
     const downloadDatabase = () => {
         const headers = [
-            "ID_SISTEMA_NAO_ALTERAR",
-            "Nome do Produto",
+            "Codigo Interno",
+            "Codigo Fornecedor",
+            "Nome",
+            "Descricao",
+            "Preco Custo",
+            "Preco Venda",
+            "Estoque",
+            "Destaque Especial",
             "Categoria",
-            "Descrição",
-            "Preço de Custo (R$)",
-            "Preço de Venda (R$)",
-            "Fornecedor",
-            "Produto Embalado (Sim/Não)",
-            "Ativo (Sim/Não)",
-            "URL da Imagem (Opcional)"
+            "URL da Imagem",
+            "Exibir no Catalog On Line",
+            "Produto Ativo (Disponivel)"
         ];
         
+        const getBadgeText = (badge: string) => {
+            if (badge === 'highlight') return 'Destaque';
+            if (badge === 'offer') return 'Oferta';
+            return 'Nenhum';
+        };
+
         const rows = products.map(p => [
-            p.id,
+            p.internal_code || '',
+            p.supplier_code || '',
             p.name,
-            p.category,
             p.description || '',
             p.cost_price?.toString().replace('.', ',') || '0',
             p.price?.toString().replace('.', ',') || '0',
-            p.supplier_name || '',
-            p.is_packaged ? "Sim" : "Não",
-            p.is_active ? "Sim" : "Não",
-            p.image_url || ''
+            p.stock_qty || 0,
+            getBadgeText(p.feature_badge || 'none'),
+            p.category,
+            p.image_url || '',
+            p.show_in_catalog ? "Sim" : "Não",
+            p.is_active ? "Sim" : "Não"
         ]);
         
         const ws = xlsx.utils.aoa_to_sheet([headers, ...rows]);
         
         // Auto-size columns to look more professional
         ws['!cols'] = [
-            { wch: 35 }, // ID
-            { wch: 30 }, // Nome do Produto
+            { wch: 15 }, // Codigo Interno
+            { wch: 20 }, // Codigo Fornecedor
+            { wch: 30 }, // Nome
+            { wch: 45 }, // Descricao
+            { wch: 15 }, // Preco Custo
+            { wch: 15 }, // Preco Venda
+            { wch: 10 }, // Estoque
+            { wch: 20 }, // Destaque Especial
             { wch: 20 }, // Categoria
-            { wch: 45 }, // Descrição
-            { wch: 20 }, // Preço de Custo 
-            { wch: 20 }, // Preço de Venda
-            { wch: 25 }, // Fornecedor
-            { wch: 25 }, // Produto Embalado
-            { wch: 15 }, // Ativo
             { wch: 40 }, // URL da Imagem
+            { wch: 25 }, // Exibir no Catalog On Line
+            { wch: 25 }  // Produto Ativo
         ];
 
         const wb = xlsx.utils.book_new();
@@ -104,9 +116,10 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                 
                 data.forEach((row) => {
                     const rawId = row['ID_SISTEMA_NAO_ALTERAR'] || row['CODIGO'];
-                    const rawName = row['Nome do Produto'] || row['PRODUTO'];
+                    const internalCode = String(row['Codigo Interno'] || '').trim();
+                    const rawName = row['Nome do Produto'] || row['PRODUTO'] || row['Nome'];
                     
-                    if (!rawName && !rawId) return; // Skip entirely empty rows
+                    if (!rawName && !rawId && !internalCode) return; // Skip entirely empty rows
 
                     const toTitleCase = (str: string) => {
                         if (!str) return '';
@@ -118,6 +131,14 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
 
                     let id = String(rawId || '').trim();
                     const name = toTitleCase(String(rawName || '').trim());
+
+                    // Tenta achar pelo Codigo Interno se não tiver UUID
+                    if (!id && internalCode) {
+                        const existingMatch = products.find(p => p.internal_code === internalCode);
+                        if (existingMatch) {
+                            id = existingMatch.id;
+                        }
+                    }
 
                     // Se não tem ID na planilha, tenta achar no banco pelo NOME para evitar duplicação
                     if (!id && name) {
@@ -147,15 +168,26 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                         category = 'AÇÚCAR E ADOÇANTES';
                     }
 
-                    const description = String(row['Descrição'] || row['DESCRIÇÃO'] || '').trim();
+                    const description = String(row['Descrição'] || row['DESCRIÇÃO'] || row['Descricao'] || '').trim();
+                    const supplier_code = String(row['Codigo Fornecedor'] || '').trim();
                     const supplier_name = String(row['Fornecedor'] || row['FORNECEDOR'] || '').trim();
-                    const cost_price = parseMoney(row['Preço de Custo (R$)'] !== undefined ? row['Preço de Custo (R$)'] : row['CUSTO']);
-                    const price = parseMoney(row['Preço de Venda (R$)'] !== undefined ? row['Preço de Venda (R$)'] : row['VL VENDA']);
-                    const is_packaged = parseBoolean(row['Produto Embalado (Sim/Não)'] !== undefined ? row['Produto Embalado (Sim/Não)'] : row['Embalado (Sim/Não)']);
-                    // Handles 'Ativo (Sim/Não)' in both sheets
-                    const isActiveRaw = row['Ativo (Sim/Não)'];
+                    const cost_price = parseMoney(row['Preço de Custo (R$)'] !== undefined ? row['Preço de Custo (R$)'] : (row['CUSTO'] !== undefined ? row['CUSTO'] : row['Preco Custo']));
+                    const price = parseMoney(row['Preço de Venda (R$)'] !== undefined ? row['Preço de Venda (R$)'] : (row['VL VENDA'] !== undefined ? row['VL VENDA'] : row['Preco Venda']));
+                    
+                    const is_packaged_raw = row['Produto Embalado (Sim/Não)'] !== undefined ? row['Produto Embalado (Sim/Não)'] : row['Embalado (Sim/Não)'];
+                    
+                    const showCatalogRaw = row['Exibir no Catalog On Line'];
+                    const show_in_catalog = parseBoolean(showCatalogRaw !== undefined ? showCatalogRaw : 'Sim');
+                    
+                    const isActiveRaw = row['Ativo (Sim/Não)'] !== undefined ? row['Ativo (Sim/Não)'] : row['Produto Ativo (Disponivel)'];
                     const is_active = parseBoolean(isActiveRaw !== undefined ? isActiveRaw : 'Sim');
-                    const image_url = String(row['URL da Imagem (Opcional)'] || row['IMAGEM'] || '').trim();
+                    
+                    const image_url = String(row['URL da Imagem (Opcional)'] || row['IMAGEM'] || row['URL da Imagem'] || '').trim();
+                    
+                    const badgeRaw = String(row['Destaque Especial'] || '').toLowerCase().trim();
+                    let feature_badge: 'none' | 'highlight' | 'offer' = 'none';
+                    if (badgeRaw === 'destaque') feature_badge = 'highlight';
+                    if (badgeRaw === 'oferta') feature_badge = 'offer';
                     
                     // Busca a coluna de estoque lidando com espaços extras no Excel (ex: 'ESTOQUE ')
                     const stockKey = Object.keys(row).find(k => k.trim().toUpperCase() === 'ESTOQUE');
@@ -169,11 +201,14 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                                 ...(name ? { name: name } : {}),
                                 ...(category ? { category } : {}),
                                 ...(description ? { description } : {}),
+                                ...(supplier_code ? { supplier_code } : {}),
                                 ...(supplier_name ? { supplier_name } : {}),
                                 cost_price,
                                 price,
-                                is_packaged,
+                                ...(is_packaged_raw !== undefined ? { is_packaged: parseBoolean(is_packaged_raw) } : {}),
+                                show_in_catalog,
                                 is_active,
+                                feature_badge,
                                 ...(image_url ? { image_url } : {}),
                                 stock_qty
                             }
@@ -184,16 +219,16 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                             name: name,
                             category: category || 'Sem Categoria',
                             description,
-                            supplier_code: null,
+                            supplier_code: supplier_code || null,
                             supplier_name: supplier_name || null,
                             cost_price,
                             price,
-                            is_packaged,
+                            is_packaged: is_packaged_raw !== undefined ? parseBoolean(is_packaged_raw) : true,
                             is_active,
                             image_url: image_url || null,
                             stock_qty,
-                            show_in_catalog: is_active,
-                            feature_badge: 'none'
+                            show_in_catalog,
+                            feature_badge
                         });
                     }
                 });
