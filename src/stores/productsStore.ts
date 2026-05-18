@@ -14,6 +14,7 @@ interface ProductsState {
     deleteProduct: (id: string) => Promise<void>;
     seedMockProducts: () => Promise<void>;
     bulkUpdateProducts: (updates: { id: string; changes: Partial<Product> }[]) => Promise<void>;
+    bulkCreateProducts: (products: Omit<Product, 'id' | 'internal_code' | 'created_at' | 'updated_at'>[]) => Promise<void>;
 }
 
 function extractCategories(products: Product[]): string[] {
@@ -107,6 +108,49 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
         } catch (err: any) {
             console.error('Failed to bulk update products:', err);
             set({ isLoading: false, error: err.message });
+            throw err;
+        }
+    },
+
+    bulkCreateProducts: async (productsToCreate) => {
+        set({ isLoading: true, error: null });
+        try {
+            const existing = get().products;
+            let maxCode = existing.reduce((max, p) => {
+                const num = parseInt(p.internal_code, 10);
+                return !isNaN(num) && num > max ? num : max;
+            }, 0);
+
+            const inserts = productsToCreate.map((product) => {
+                maxCode++;
+                const nextCode = String(maxCode).padStart(4, '0');
+                return {
+                    internal_code: nextCode,
+                    supplier_code: product.supplier_code || null,
+                    name: product.name,
+                    description: product.description || null,
+                    price: product.price,
+                    cost_price: product.cost_price || 0,
+                    category: product.category,
+                    stock_qty: product.stock_qty,
+                    image_url: product.image_url || null,
+                    is_active: product.is_active,
+                    show_in_catalog: product.show_in_catalog,
+                    feature_badge: product.feature_badge || 'none',
+                };
+            });
+
+            const { error } = await supabase.from('products').insert(inserts);
+
+            if (error) {
+                throw error;
+            }
+
+            await get().fetchProducts();
+        } catch (err: any) {
+            console.error('Failed to bulk create products:', err);
+            set({ isLoading: false, error: err.message });
+            throw err;
         }
     },
 

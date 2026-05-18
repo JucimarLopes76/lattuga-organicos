@@ -11,18 +11,18 @@ interface ImportExcelModalProps {
     onClose: () => void;
 }
 
-interface ParsedUpdate {
-    id: string; // The locked ID
-    changes: Partial<Product>;
+interface ParsedData {
+    updates: { id: string; changes: Partial<Product> }[];
+    creates: Omit<Product, 'id' | 'internal_code' | 'created_at' | 'updated_at'>[];
 }
 
 export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
-    const { fetchProducts, products, bulkUpdateProducts } = useProductsStore();
+    const { fetchProducts, products, bulkUpdateProducts, bulkCreateProducts } = useProductsStore();
     const [isImporting, setIsImporting] = useState(false);
     const [progress, setProgress] = useState<string>('');
     const [error, setError] = useState<string>('');
-    const [result, setResult] = useState<{ totalFound: number, updated: number } | null>(null);
-    const [parsedData, setParsedData] = useState<ParsedUpdate[] | null>(null);
+    const [result, setResult] = useState<{ totalFound: number, updated: number, created: number } | null>(null);
+    const [parsedData, setParsedData] = useState<ParsedData | null>(null);
     
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -97,13 +97,14 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                     return;
                 }
 
-                const validUpdates: ParsedUpdate[] = [];
+                const updates: { id: string; changes: Partial<Product> }[] = [];
+                const creates: Omit<Product, 'id' | 'internal_code' | 'created_at' | 'updated_at'>[] = [];
                 
                 data.forEach((row) => {
-                    const id = row['ID_SISTEMA_NAO_ALTERAR'];
-                    const name = row['Nome do Produto'];
+                    const id = row['ID_SISTEMA_NAO_ALTERAR'] || row['CODIGO'];
+                    const name = row['Nome do Produto'] || row['PRODUTO'];
                     
-                    if (!id) return; // Ignore missing IDs completely
+                    if (!name && !id) return; // Skip entirely empty rows
 
                     const parseMoney = (val: any) => {
                         if (typeof val === 'number') return val;
@@ -118,29 +119,61 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                         return strVal.includes('sim') || strVal === 's' || strVal === 'true';
                     };
 
-                    // Only update what exists in sheet
-                    validUpdates.push({
-                        id: String(id).trim(),
-                        changes: {
-                            ...(name ? { name: String(name).trim() } : {}),
-                            ...(row['Categoria'] ? { category: String(row['Categoria']).trim() } : {}),
-                            ...(row['Descrição'] !== undefined ? { description: String(row['Descrição'] || '').trim() } : {}),
-                            ...(row['Fornecedor'] !== undefined ? { supplier_name: String(row['Fornecedor'] || '').trim() } : {}),
-                            ...(row['Preço de Custo (R$)'] !== undefined ? { cost_price: parseMoney(row['Preço de Custo (R$)']) } : {}),
-                            ...(row['Preço de Venda (R$)'] !== undefined ? { price: parseMoney(row['Preço de Venda (R$)']) } : {}),
-                            ...(row['Produto Embalado (Sim/Não)'] !== undefined ? { is_packaged: parseBoolean(row['Produto Embalado (Sim/Não)']) } : {}),
-                            ...(row['Ativo (Sim/Não)'] !== undefined ? { is_active: parseBoolean(row['Ativo (Sim/Não)']) } : {}),
-                            ...(row['URL da Imagem (Opcional)'] !== undefined ? { image_url: String(row['URL da Imagem (Opcional)'] || '').trim() } : {})
-                        }
-                    });
+                    const category = String(row['Categoria'] || row['CATEGORIA'] || '').trim();
+                    const description = String(row['Descrição'] || row['DESCRIÇÃO'] || '').trim();
+                    const supplier_name = String(row['Fornecedor'] || row['FORNECEDOR'] || '').trim();
+                    const cost_price = parseMoney(row['Preço de Custo (R$)'] !== undefined ? row['Preço de Custo (R$)'] : row['CUSTO']);
+                    const price = parseMoney(row['Preço de Venda (R$)'] !== undefined ? row['Preço de Venda (R$)'] : row['VL VENDA']);
+                    const is_packaged = parseBoolean(row['Produto Embalado (Sim/Não)'] !== undefined ? row['Produto Embalado (Sim/Não)'] : row['Embalado (Sim/Não)']);
+                    // Handles 'Ativo (Sim/Não)' in both sheets
+                    const isActiveRaw = row['Ativo (Sim/Não)'];
+                    const is_active = parseBoolean(isActiveRaw !== undefined ? isActiveRaw : 'Sim');
+                    const image_url = String(row['URL da Imagem (Opcional)'] || row['IMAGEM'] || '').trim();
+                    const stock_qty = parseInt(String(row['ESTOQUE'] || row['Estoque'] || '0'), 10) || 0;
+
+                    if (id && String(id).trim() !== '') {
+                        // It's an update
+                        updates.push({
+                            id: String(id).trim(),
+                            changes: {
+                                ...(name ? { name: String(name).trim() } : {}),
+                                ...(category ? { category } : {}),
+                                ...(description ? { description } : {}),
+                                ...(supplier_name ? { supplier_name } : {}),
+                                cost_price,
+                                price,
+                                is_packaged,
+                                is_active,
+                                ...(image_url ? { image_url } : {}),
+                                stock_qty
+                            }
+                        });
+                    } else if (name) {
+                        // It's a create
+                        creates.push({
+                            name: String(name).trim(),
+                            category: category || 'Sem Categoria',
+                            description,
+                            supplier_code: null,
+                            supplier_name: supplier_name || null,
+                            cost_price,
+                            price,
+                            is_packaged,
+                            is_active,
+                            image_url: image_url || null,
+                            stock_qty,
+                            show_in_catalog: is_active,
+                            feature_badge: 'none'
+                        });
+                    }
                 });
 
-                if (validUpdates.length === 0) {
-                    setError('Nenhuma linha encontrou o ID_SISTEMA_NAO_ALTERAR. Se quiser alterar produtos, baixe a planilha base novamente.');
+                if (updates.length === 0 && creates.length === 0) {
+                    setError('Nenhuma linha válida encontrada na planilha. Verifique se as colunas estão corretas.');
                     return;
                 }
 
-                setParsedData(validUpdates);
+                setParsedData({ updates, creates });
                 
             } catch (err: any) {
                 setError('Erro ao processar o arquivo. Certifique-se que é do formato Excel válido.');
@@ -154,13 +187,22 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
         
         setIsImporting(true);
         setError('');
-        setProgress('Atualizando os produtos na nuvem...');
+        setProgress('Processando produtos na nuvem...');
 
         try {
-            await bulkUpdateProducts(parsedData);
+            if (parsedData.updates.length > 0) {
+                setProgress(`Atualizando ${parsedData.updates.length} produtos...`);
+                await bulkUpdateProducts(parsedData.updates);
+            }
+            if (parsedData.creates.length > 0) {
+                setProgress(`Criando ${parsedData.creates.length} novos produtos...`);
+                await bulkCreateProducts(parsedData.creates);
+            }
+
             setResult({
-                totalFound: parsedData.length,
-                updated: parsedData.length
+                totalFound: parsedData.updates.length + parsedData.creates.length,
+                updated: parsedData.updates.length,
+                created: parsedData.creates.length
             });
             await fetchProducts(); 
         } catch (err: any) {
@@ -242,7 +284,7 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                             <h3 className="font-bold text-xl text-gray-900">Planilha Lida com Sucesso!</h3>
                         </div>
                         <p className="text-gray-600 mb-6 text-sm">
-                            Encontramos <strong className="text-gray-900">{parsedData.length}</strong> produtos para atualização no banco de sistema. (Apenas produtos com ID retornado foram lidos). Ao prosseguir, o banco refletirá as alterações feitas na planilha silênciosamente, mantendo o controle total da plataforma.
+                            Encontramos <strong className="text-gray-900">{parsedData.updates.length}</strong> produtos para atualizar e <strong className="text-gray-900">{parsedData.creates.length}</strong> novos produtos para criar no banco de sistema. Ao prosseguir, o banco refletirá as alterações feitas na planilha silênciosamente, mantendo o controle total da plataforma.
                         </p>
 
                         <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
@@ -263,7 +305,7 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                         </div>
                         <h3 className="text-2xl font-bold text-gray-900">Atualização Completa!</h3>
                         <p className="text-gray-600 text-sm max-w-sm mx-auto">
-                            Foram alterados no sistema <strong className="text-gray-900">{result.updated}</strong> produtos em massa com base nas linhas da sua planilha!
+                            Foram alterados <strong className="text-gray-900">{result.updated}</strong> produtos e criados <strong className="text-gray-900">{result.created}</strong> novos produtos com sucesso!
                         </p>
                         <Button 
                             className="mt-6 w-full max-w-[200px]" 
