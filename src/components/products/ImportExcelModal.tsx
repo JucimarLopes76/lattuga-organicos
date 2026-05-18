@@ -150,7 +150,10 @@ export function ImportExcelModal({ isOpen, onClose }: ImportExcelModalProps) {
                     const isActiveRaw = row['Ativo (Sim/Não)'];
                     const is_active = parseBoolean(isActiveRaw !== undefined ? isActiveRaw : 'Sim');
                     const image_url = String(row['URL da Imagem (Opcional)'] || row['IMAGEM'] || '').trim();
-                    const stock_qty = parseInt(String(row['ESTOQUE'] || row['Estoque'] || '0'), 10) || 0;
+                    
+                    // Busca a coluna de estoque lidando com espaços extras no Excel (ex: 'ESTOQUE ')
+                    const stockKey = Object.keys(row).find(k => k.trim().toUpperCase() === 'ESTOQUE');
+                    const stock_qty = parseInt(String((stockKey ? row[stockKey] : row['Estoque']) || '0'), 10) || 0;
 
                     if (id && String(id).trim() !== '') {
                         // It's an update
