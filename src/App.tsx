@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, Suspense, lazy } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { Spinner } from '@/components/ui/Spinner';
+import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
 
 // Layouts - imported statically as they are needed immediately
 import { AdminLayout } from '@/layouts/AdminLayout';
@@ -40,6 +41,7 @@ export default function App() {
     return (
         <BrowserRouter>
             <PWAInstallPrompt />
+            <VercelAnalytics />
             <Suspense fallback={<PageLoadingFallback />}>
                 <Routes>
                     {/* Public routes */}
