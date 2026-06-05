@@ -67,12 +67,14 @@ export default function POS() {
     const handleCheckoutComplete = (receiptData: ReceiptData) => {
         setLastReceipt(receiptData);
         setShowCheckout(false);
-        // Print receipt
-        setTimeout(() => {
-            window.print();
-            cart.reset();
-            setLastReceipt(null);
-        }, 200);
+        // Print receipt (desativado — reativar quando tiver impressora)
+        // setTimeout(() => {
+        //     window.print();
+        //     cart.reset();
+        //     setLastReceipt(null);
+        // }, 200);
+        cart.reset();
+        setLastReceipt(null);
     };
 
     return (
