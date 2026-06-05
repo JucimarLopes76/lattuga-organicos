@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     Plus,
     Search,
@@ -21,6 +21,7 @@ import { Input, Select } from '@/components/ui/Input';
 import { RegisterPurchaseModal } from '@/components/products/RegisterPurchaseModal';
 import { ImportExcelModal } from '@/components/products/ImportExcelModal';
 import { usePurchasesStore } from '@/stores/purchasesStore';
+import { supabase } from '@/lib/supabase';
 import type { Product } from '@/types';
 
 export default function Products() {
@@ -64,6 +65,8 @@ export default function Products() {
     const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
     const [formImageScenario, setFormImageScenario] = useState('');
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const imageFileRef = useRef<HTMLInputElement>(null);
 
     // Computed properties for the active form
     const isPackagedItem = formIsPackaged;
@@ -179,8 +182,7 @@ export default function Products() {
         }
     };
 
-    const handleGenerateImage = async () => {
-        if (!formName) {
+    const handleGenerateImage = async () => {        if (!formName) {
             alert('Por favor, preencha o nome do produto primeiro para gerar a imagem.');
             return;
         }
@@ -200,6 +202,49 @@ export default function Products() {
             alert(error.message || 'Erro ao gerar imagem com IA');
         } finally {
             setIsGeneratingImage(false);
+        }
+    };
+
+    const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!e.target.files) return;
+        // Reset input so same file can be selected again if needed
+        e.target.value = '';
+        if (!file) return;
+
+        // Validate type
+        if (!file.type.startsWith('image/')) {
+            alert('Arquivo inválido. Selecione apenas imagens (JPG, PNG, WEBP, etc).');
+            return;
+        }
+
+        // Validate size (5MB max)
+        const MAX_SIZE = 5 * 1024 * 1024;
+        if (file.size > MAX_SIZE) {
+            alert('Imagem muito grande. O tamanho máximo permitido é 5MB.');
+            return;
+        }
+
+        setIsUploadingImage(true);
+        try {
+            const ext = file.name.split('.').pop() || 'jpg';
+            const filePath = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('product-images')
+                .upload(filePath, file, { contentType: file.type, upsert: false });
+
+            if (uploadError) throw uploadError;
+
+            const { data: urlData } = supabase.storage
+                .from('product-images')
+                .getPublicUrl(filePath);
+
+            setFormImageUrl(urlData.publicUrl);
+        } catch (err: any) {
+            alert(`Erro ao enviar imagem: ${err.message || 'Tente novamente.'}`);
+        } finally {
+            setIsUploadingImage(false);
         }
     };
 
@@ -632,6 +677,24 @@ export default function Products() {
                                     placeholder="https://..."
                                     icon={<Upload size={16} />}
                                 />
+                                <input
+                                    ref={imageFileRef}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handleImageFileChange}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full border-dashed border-gray-300 text-gray-600 hover:border-brand-400 hover:text-brand-700 hover:bg-brand-50"
+                                    leftIcon={isUploadingImage ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
+                                    onClick={() => imageFileRef.current?.click()}
+                                    disabled={isUploadingImage}
+                                >
+                                    {isUploadingImage ? 'Enviando...' : 'Enviar do dispositivo'}
+                                </Button>
                                 <div>
                                     <Input
                                         label="Cenário para IA (Opcional)"
