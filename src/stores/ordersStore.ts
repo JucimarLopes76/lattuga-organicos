@@ -209,7 +209,7 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
             await decrementStock(items);
 
             // 5. Automatically create a Freight expense if applicable
-            if (orderData.delivery_method === 'delivery' && orderData.surcharge_amount > 0) {
+            if (orderData.type === 'pdv' && orderData.delivery_method === 'delivery' && orderData.surcharge_amount > 0) {
                 try {
                     await useFinanceStore.getState().addExpense({
                         description: `Frete a Pagar - Pedido #${orderId.slice(0, 8)}`,
