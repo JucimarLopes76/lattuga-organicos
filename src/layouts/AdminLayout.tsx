@@ -79,6 +79,9 @@ export function AdminLayout() {
             }
         };
 
+        // Populate store immediately so polling fallback has a baseline to compare against
+        fetchOrders();
+
         console.log("Global AdminLayout: Setting up Supabase Realtime subscription for Orders...");
         const channel = supabase
             .channel('global-orders-channel')
