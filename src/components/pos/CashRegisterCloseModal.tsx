@@ -236,6 +236,19 @@ export function CashRegisterCloseModal({ isOpen, onClose, onSuccess }: Props) {
                     </div>
                 </div>
 
+                {summary.cancelledOrders > 0 && (
+                    <div className="flex items-center justify-between bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">
+                        <div>
+                            <p className="text-sm font-semibold text-red-700">Pedidos Cancelados</p>
+                            <p className="text-xs text-red-500">Não contabilizados no fechamento</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-sm font-bold text-red-700">{summary.cancelledOrders} pedido{summary.cancelledOrders > 1 ? 's' : ''}</p>
+                            <p className="text-xs text-red-500">{formatCurrency(summary.cancelledAmount)}</p>
+                        </div>
+                    </div>
+                )}
+
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                         Observações do Fechamento

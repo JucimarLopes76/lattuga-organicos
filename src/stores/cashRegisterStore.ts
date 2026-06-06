@@ -34,6 +34,8 @@ export interface SalesSummary {
     byPix: number;
     byDebit: number;
     byCredit: number;
+    cancelledOrders: number;
+    cancelledAmount: number;
 }
 
 interface CashRegisterState {
@@ -206,6 +208,8 @@ export const useCashRegisterStore = create<CashRegisterState>((set, get) => ({
             byPix: 0,
             byDebit: 0,
             byCredit: 0,
+            cancelledOrders: 0,
+            cancelledAmount: 0,
         };
         if (!session) return empty;
 
@@ -227,10 +231,20 @@ export const useCashRegisterStore = create<CashRegisterState>((set, get) => ({
             let byPix = 0;
             let byDebit = 0;
             let byCredit = 0;
+            let cancelledOrders = 0;
+            let cancelledAmount = 0;
 
             for (const order of orders) {
-                totalOrders++;
                 const amount = Number(order.total_amount) || 0;
+
+                // Cancelled orders: count separately, do not affect cash closing totals
+                if (order.status === 'cancelled') {
+                    cancelledOrders++;
+                    cancelledAmount += amount;
+                    continue;
+                }
+
+                totalOrders++;
                 totalSales += amount;
 
                 if (order.type === 'pdv') totalOrdersPdv++;
@@ -267,6 +281,8 @@ export const useCashRegisterStore = create<CashRegisterState>((set, get) => ({
                 byPix,
                 byDebit,
                 byCredit,
+                cancelledOrders,
+                cancelledAmount,
             };
         } catch (err) {
             console.error('Error getting sales summary:', err);
