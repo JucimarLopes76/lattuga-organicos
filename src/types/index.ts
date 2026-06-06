@@ -61,6 +61,7 @@ export interface Order {
     discount_amount: number;
     surcharge_amount: number;
     delivery_address: string | null;
+    notes: string | null;
     created_at: string;
     // Joined
     customer?: Customer;

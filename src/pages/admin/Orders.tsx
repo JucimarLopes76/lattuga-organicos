@@ -362,6 +362,7 @@ export default function Orders() {
                             <option value="credit">Crédito</option>
                             <option value="debit">Débito</option>
                             <option value="cash">Dinheiro</option>
+                            <option value="pay_later">Pagará Depois</option>
                         </select>
                     </div>
 
@@ -496,7 +497,7 @@ export default function Orders() {
                                                 </p>
                                             )}
                                             <p className="pt-1">
-                                                Pagamento: <span className="font-medium text-gray-900 capitalize">{order.payment_method === 'credit' ? 'Crédito' : order.payment_method === 'debit' ? 'Débito' : order.payment_method === 'cash' ? 'Dinheiro' : 'Pix'}</span>
+                                                Pagamento: <span className="font-medium text-gray-900 capitalize">{order.payment_method === 'credit' ? 'Crédito' : order.payment_method === 'debit' ? 'Débito' : order.payment_method === 'cash' ? 'Dinheiro' : order.payment_method === 'pay_later' ? 'Pagará Depois' : 'Pix'}</span>
                                             </p>
                                         </div>
                                     </div>
