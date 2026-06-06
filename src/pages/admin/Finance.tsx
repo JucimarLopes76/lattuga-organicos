@@ -7,21 +7,39 @@ import { Button } from '@/components/ui/Button';
 import { formatCurrency, cn } from '@/lib/utils';
 import {
     TrendingUp, TrendingDown, Wallet, Calendar, Filter,
-    Plus, Search, ArrowUpRight, ArrowDownLeft, Eye, Receipt, DollarSign
+    Plus, Search, ArrowUpRight, ArrowDownLeft, Eye, Receipt, DollarSign, CheckCircle, X
 } from 'lucide-react';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
-import type { FinancialTransaction } from '@/types';
+import type { FinancialTransaction, Expense } from '@/types';
 
 export default function Finance() {
     const {
         transactions,
         summary,
         isLoading,
-        fetchTransactions
+        fetchTransactions,
+        markExpenseAsPaid
     } = useFinanceStore();
 
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<FinancialTransaction | null>(null);
+    const [payingExpense, setPayingExpense] = useState<FinancialTransaction | null>(null);
+    const [payDate, setPayDate] = useState('');
+    const [payMethod, setPayMethod] = useState('pix');
+    const [payLoading, setPayLoading] = useState(false);
+
+    const handleMarkAsPaid = async () => {
+        if (!payingExpense || !payDate) return;
+        setPayLoading(true);
+        try {
+            await markExpenseAsPaid(payingExpense.id, payDate, payMethod);
+            setPayingExpense(null);
+        } catch {
+            alert('Erro ao marcar como pago. Tente novamente.');
+        } finally {
+            setPayLoading(false);
+        }
+    };
 
     // Filters
     const [dateRange, setDateRange] = useState({
@@ -216,6 +234,11 @@ export default function Finance() {
                                         )}>
                                             {t.type === 'expense' ? '-' : '+'} {formatCurrency(t.amount)}
                                         </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">
+                                            {t.type === 'expense' && (t.original as Expense).due_date
+                                                ? format(parseISO((t.original as Expense).due_date), 'dd/MM/yyyy')
+                                                : '-'}
+                                        </td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={cn(
                                                 "px-2 py-1 rounded text-xs font-bold",
@@ -231,13 +254,24 @@ export default function Finance() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <button
-                                                onClick={() => setSelectedTransaction(t)}
-                                                className="p-1.5 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors cursor-pointer"
-                                                title="Visualizar Detalhes"
-                                            >
-                                                <Eye size={18} />
-                                            </button>
+                                            <div className="flex items-center justify-center gap-1">
+                                                {t.type === 'expense' && t.status === 'pending' && (
+                                                    <button
+                                                        onClick={() => { setPayingExpense(t); setPayDate(new Date().toISOString().split('T')[0]); setPayMethod('pix'); }}
+                                                        className="p-1.5 text-amber-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors cursor-pointer"
+                                                        title="Marcar como Pago"
+                                                    >
+                                                        <CheckCircle size={18} />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => setSelectedTransaction(t)}
+                                                    className="p-1.5 text-gray-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors cursor-pointer"
+                                                    title="Visualizar Detalhes"
+                                                >
+                                                    <Eye size={18} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -246,6 +280,56 @@ export default function Finance() {
                     </table>
                 </div>
             </div>
+
+            {/* Mark as Paid Mini Modal */}
+            {payingExpense && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-bold text-gray-800">Marcar como Pago</h3>
+                            <button onClick={() => setPayingExpense(null)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 cursor-pointer"><X size={18} /></button>
+                        </div>
+                        <p className="text-sm text-gray-500 truncate">{payingExpense.description}</p>
+                        <p className="text-xl font-bold text-red-600">{formatCurrency(payingExpense.amount)}</p>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Data do Pagamento</label>
+                                <input
+                                    type="date"
+                                    value={payDate}
+                                    onChange={e => setPayDate(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">Forma de Pagamento</label>
+                                <select
+                                    value={payMethod}
+                                    onChange={e => setPayMethod(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none bg-white"
+                                >
+                                    <option value="pix">Pix</option>
+                                    <option value="Dinheiro">Dinheiro</option>
+                                    <option value="Cartão de Crédito">Cartão de Crédito</option>
+                                    <option value="Cartão de Débito">Cartão de Débito</option>
+                                    <option value="Transferência">Transferência</option>
+                                    <option value="Boleto">Boleto</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="flex gap-3 pt-1">
+                            <button onClick={() => setPayingExpense(null)} className="flex-1 px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition cursor-pointer">Cancelar</button>
+                            <button
+                                onClick={handleMarkAsPaid}
+                                disabled={!payDate || payLoading}
+                                className="flex-1 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50 cursor-pointer"
+                            >
+                                {payLoading ? 'Salvando...' : 'Confirmar Pagamento'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <AddExpenseModal
                 isOpen={isAddModalOpen}

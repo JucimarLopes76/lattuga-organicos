@@ -20,6 +20,7 @@ interface FinanceState {
     deleteExpense: (id: string) => Promise<void>;
     updateExpense: (id: string, updates: Partial<Expense>) => Promise<void>;
     cancelExpensesByOrderId: (orderId: string) => Promise<void>;
+    markExpenseAsPaid: (id: string, paymentDate: string, paymentMethod: string) => Promise<void>;
 }
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
@@ -143,6 +144,19 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
             await get().fetchTransactions(); // Refresh
         } catch (error: any) {
             set({ error: error.message, isLoading: false });
+            throw error;
+        }
+    },
+
+    markExpenseAsPaid: async (id, paymentDate, paymentMethod) => {
+        try {
+            await supabase
+                .from('expenses')
+                .update({ status: 'paid', payment_date: paymentDate, payment_method: paymentMethod })
+                .eq('id', id);
+            await get().fetchTransactions();
+        } catch (error: any) {
+            console.error('Error marking expense as paid:', error);
             throw error;
         }
     },
