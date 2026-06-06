@@ -105,32 +105,30 @@ export function CashRegisterCloseModal({ isOpen, onClose, onSuccess }: Props) {
         diff: number,
         isCash: boolean = false
     ) => (
-        <div className="grid grid-cols-12 gap-4 items-center py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors px-2 rounded-lg">
-            {/* Label */}
-            <div className="col-span-4 flex items-center gap-3">
-                <div className={`h-10 w-10 rounded-full flex items-center justify-center ${isCash ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+        <div className="flex items-center gap-2 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors px-2 rounded-lg">
+            {/* Icon + Label */}
+            <div className="flex items-center gap-2 w-[30%] min-w-0">
+                <div className={`h-8 w-8 flex-shrink-0 rounded-full flex items-center justify-center ${isCash ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
                     {icon}
                 </div>
-                <div>
-                    <p className="font-semibold text-gray-900 text-sm">{label}</p>
-                    {sublabel && <p className="text-[10px] text-gray-500">{sublabel}</p>}
+                <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 text-xs truncate">{label}</p>
+                    {sublabel && <p className="text-[10px] text-gray-500 truncate">{sublabel}</p>}
                 </div>
             </div>
 
             {/* Expected */}
-            <div className="col-span-3 text-right">
-                <span className="text-sm font-medium text-gray-600 block">
-                    {formatCurrency(expected)}
-                </span>
-                <span className="text-[10px] text-gray-400 uppercase tracking-wider">Esperado</span>
+            <div className="w-[28%] text-right">
+                <span className="text-xs font-medium text-gray-600 block">{formatCurrency(expected)}</span>
+                <span className="text-[9px] text-gray-400 uppercase tracking-wider">Esperado</span>
             </div>
 
             {/* Counted Input */}
-            <div className="col-span-3">
+            <div className="w-[26%]">
                 <input
                     type="number"
                     step="0.01"
-                    className={`w-full text-right font-bold bg-white border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 transition-all ${Math.abs(diff) > 0.01
+                    className={`w-full text-right text-sm font-bold bg-white border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 transition-all ${Math.abs(diff) > 0.01
                             ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500/20 text-amber-900'
                             : 'border-gray-200 focus:border-brand-500 focus:ring-brand-500/20 text-gray-900'
                         }`}
@@ -141,15 +139,13 @@ export function CashRegisterCloseModal({ isOpen, onClose, onSuccess }: Props) {
             </div>
 
             {/* Difference */}
-            <div className="col-span-2 text-right">
+            <div className="w-[16%] text-right">
                 {Math.abs(diff) > 0.01 ? (
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${diff < 0 ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full block text-center ${diff < 0 ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
                         {diff > 0 ? '+' : ''}{formatCurrency(diff)}
                     </span>
                 ) : (
-                    <span className="text-xs font-medium text-gray-300">
-                        OK
-                    </span>
+                    <span className="text-xs font-medium text-gray-300 block text-center">OK</span>
                 )}
             </div>
         </div>
@@ -188,11 +184,11 @@ export function CashRegisterCloseModal({ isOpen, onClose, onSuccess }: Props) {
                     </div>
 
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                        <div className="bg-gray-50 px-4 py-2 grid grid-cols-12 gap-4 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                            <div className="col-span-4">Forma</div>
-                            <div className="col-span-3 text-right">Sistema</div>
-                            <div className="col-span-3 text-right">Físico</div>
-                            <div className="col-span-2 text-right">Dif.</div>
+                        <div className="bg-gray-50 px-4 py-2 flex text-[10px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                            <div className="w-[30%]">Forma</div>
+                            <div className="w-[28%] text-right">Sistema</div>
+                            <div className="w-[26%] text-right">Físico</div>
+                            <div className="w-[16%] text-right">Dif.</div>
                         </div>
                         <div className="px-2">
                             {renderRow(
@@ -235,6 +231,24 @@ export function CashRegisterCloseModal({ isOpen, onClose, onSuccess }: Props) {
                         </div>
                     </div>
                 </div>
+
+                {(summary.totalOrdersPdvCount > 0 || summary.totalOrdersOnlineCount > 0) && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-4">
+                        <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Origem das Vendas</p>
+                        <div className="flex gap-3">
+                            <div className="flex-1 bg-white rounded-lg border border-gray-100 p-2 text-center">
+                                <p className="text-xs text-gray-500">PDV</p>
+                                <p className="text-sm font-bold text-gray-800">{formatCurrency(summary.totalSalesPdv)}</p>
+                                <p className="text-[10px] text-gray-400">{summary.totalOrdersPdvCount} pedido{summary.totalOrdersPdvCount !== 1 ? 's' : ''}</p>
+                            </div>
+                            <div className="flex-1 bg-white rounded-lg border border-gray-100 p-2 text-center">
+                                <p className="text-xs text-gray-500">Online</p>
+                                <p className="text-sm font-bold text-gray-800">{formatCurrency(summary.totalSalesOnline)}</p>
+                                <p className="text-[10px] text-gray-400">{summary.totalOrdersOnlineCount} pedido{summary.totalOrdersOnlineCount !== 1 ? 's' : ''}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {summary.byPayLater > 0 && (
                     <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 mb-4">

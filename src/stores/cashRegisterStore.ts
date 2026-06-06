@@ -37,6 +37,10 @@ export interface SalesSummary {
     cancelledOrders: number;
     cancelledAmount: number;
     byPayLater: number;
+    totalSalesPdv: number;
+    totalSalesOnline: number;
+    totalOrdersPdvCount: number;
+    totalOrdersOnlineCount: number;
 }
 
 interface CashRegisterState {
@@ -212,6 +216,10 @@ export const useCashRegisterStore = create<CashRegisterState>((set, get) => ({
             cancelledOrders: 0,
             cancelledAmount: 0,
             byPayLater: 0,
+            totalSalesPdv: 0,
+            totalSalesOnline: 0,
+            totalOrdersPdvCount: 0,
+            totalOrdersOnlineCount: 0,
         };
         if (!session) return empty;
 
@@ -236,6 +244,10 @@ export const useCashRegisterStore = create<CashRegisterState>((set, get) => ({
             let cancelledOrders = 0;
             let cancelledAmount = 0;
             let byPayLater = 0;
+            let totalSalesPdv = 0;
+            let totalSalesOnline = 0;
+            let totalOrdersPdvCount = 0;
+            let totalOrdersOnlineCount = 0;
 
             for (const order of orders) {
                 const amount = Number(order.total_amount) || 0;
@@ -247,11 +259,26 @@ export const useCashRegisterStore = create<CashRegisterState>((set, get) => ({
                     continue;
                 }
 
+                // PDV: only 'completed' counts. Online: only 'accepted' or 'completed' counts.
+                const isPdv = order.type === 'pdv';
+                const isValidSale = isPdv
+                    ? order.status === 'completed'
+                    : (order.status === 'accepted' || order.status === 'completed');
+
+                if (!isValidSale) continue;
+
                 totalOrders++;
                 totalSales += amount;
 
-                if (order.type === 'pdv') totalOrdersPdv++;
-                else totalOrdersOnline++;
+                if (isPdv) {
+                    totalOrdersPdv++;
+                    totalOrdersPdvCount++;
+                    totalSalesPdv += amount;
+                } else {
+                    totalOrdersOnline++;
+                    totalOrdersOnlineCount++;
+                    totalSalesOnline += amount;
+                }
 
                 const items = (order as any).order_items || [];
                 for (const item of items) {
@@ -290,6 +317,10 @@ export const useCashRegisterStore = create<CashRegisterState>((set, get) => ({
                 cancelledOrders,
                 cancelledAmount,
                 byPayLater,
+                totalSalesPdv,
+                totalSalesOnline,
+                totalOrdersPdvCount,
+                totalOrdersOnlineCount,
             };
         } catch (err) {
             console.error('Error getting sales summary:', err);
