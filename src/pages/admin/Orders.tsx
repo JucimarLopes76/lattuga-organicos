@@ -18,6 +18,8 @@ import {
     FileText,
     Download,
     Ban,
+    Pencil,
+    Save,
 } from 'lucide-react';
 import {
     startOfDay,
@@ -41,10 +43,39 @@ import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
 import type { Order } from '@/types';
 
 export default function Orders() {
-    const { orders, isLoading, fetchOrders, updateStatus, cancelOrder } = useOrdersStore();
+    const { orders, isLoading, fetchOrders, updateStatus, cancelOrder, updateOrderFields } = useOrdersStore();
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+    const [editPayment, setEditPayment] = useState('');
+    const [editStatus, setEditStatus] = useState('');
+    const [editNotes, setEditNotes] = useState('');
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+    const openEdit = (order: Order) => {
+        setEditingOrderId(order.id);
+        setEditPayment(order.payment_method || '');
+        setEditStatus(order.status);
+        setEditNotes((order as any).notes || '');
+    };
+
+    const saveEdit = async () => {
+        if (!editingOrderId) return;
+        setIsSavingEdit(true);
+        try {
+            await updateOrderFields(editingOrderId, {
+                payment_method: editPayment,
+                status: editStatus,
+                notes: editNotes || undefined,
+            });
+            setEditingOrderId(null);
+        } catch {
+            alert('Erro ao salvar. Tente novamente.');
+        } finally {
+            setIsSavingEdit(false);
+        }
+    };
     const [filter, setFilter] = useState<string>('all');
 
     // Notifications and real-time listening are now globally handled in AdminLayout.tsx 
@@ -549,15 +580,75 @@ export default function Orders() {
                                 )}
 
                                 {order.status === 'completed' && (
-                                    <div className="pt-3 border-t border-gray-100">
-                                        <Button
-                                            variant="danger"
-                                            size="sm"
-                                            onClick={() => setCancelConfirmId(order.id)}
-                                            leftIcon={<Ban size={16} />}
-                                        >
-                                            Cancelar Pedido
-                                        </Button>
+                                    <div className="pt-3 border-t border-gray-100 space-y-3">
+                                        {editingOrderId === order.id ? (
+                                            <div className="space-y-3 bg-gray-50 rounded-xl p-3">
+                                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">Editar Pedido</p>
+                                                <div>
+                                                    <label className="block text-xs text-gray-500 mb-1">Forma de Pagamento</label>
+                                                    <select
+                                                        value={editPayment}
+                                                        onChange={e => setEditPayment(e.target.value)}
+                                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                    >
+                                                        <option value="pix">Pix</option>
+                                                        <option value="cash">Dinheiro</option>
+                                                        <option value="debit">Débito</option>
+                                                        <option value="credit">Crédito</option>
+                                                        <option value="pay_later">Pagará Depois</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs text-gray-500 mb-1">Status</label>
+                                                    <select
+                                                        value={editStatus}
+                                                        onChange={e => setEditStatus(e.target.value)}
+                                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                                                    >
+                                                        <option value="completed">Concluído</option>
+                                                        <option value="accepted">Aceito</option>
+                                                        <option value="pending">Pendente</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs text-gray-500 mb-1">Observações</label>
+                                                    <textarea
+                                                        value={editNotes}
+                                                        onChange={e => setEditNotes(e.target.value)}
+                                                        rows={2}
+                                                        placeholder="Observação opcional..."
+                                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-none"
+                                                    />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button variant="outline" size="sm" onClick={() => setEditingOrderId(null)} disabled={isSavingEdit}>
+                                                        Cancelar
+                                                    </Button>
+                                                    <Button size="sm" onClick={saveEdit} disabled={isSavingEdit} leftIcon={<Save size={14} />}>
+                                                        {isSavingEdit ? 'Salvando...' : 'Salvar'}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => openEdit(order)}
+                                                    leftIcon={<Pencil size={14} />}
+                                                >
+                                                    Editar
+                                                </Button>
+                                                <Button
+                                                    variant="danger"
+                                                    size="sm"
+                                                    onClick={() => setCancelConfirmId(order.id)}
+                                                    leftIcon={<Ban size={16} />}
+                                                >
+                                                    Cancelar Pedido
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

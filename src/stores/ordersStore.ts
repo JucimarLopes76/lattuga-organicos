@@ -81,6 +81,7 @@ interface OrdersState {
 
     /** Cancel an order, restore stock, and update finance */
     cancelOrder: (orderId: string) => Promise<void>;
+    updateOrderFields: (orderId: string, fields: { payment_method?: string; status?: string; notes?: string }) => Promise<void>;
 }
 
 export const useOrdersStore = create<OrdersState>((set, get) => ({
@@ -263,6 +264,24 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
             console.error('Error updating order status:', error);
             // Revert on error — refetch
             get().fetchOrders();
+        }
+    },
+
+    updateOrderFields: async (orderId, fields) => {
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update(fields)
+                .eq('id', orderId);
+            if (error) throw error;
+            set((state) => ({
+                orders: state.orders.map((o) =>
+                    o.id === orderId ? { ...o, ...fields } : o
+                ),
+            }));
+        } catch (err) {
+            console.error('Error updating order fields:', err);
+            throw err;
         }
     },
 
