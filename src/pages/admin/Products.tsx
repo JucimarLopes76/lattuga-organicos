@@ -479,59 +479,71 @@ export default function Products() {
                             <div
                                 key={p.id}
                                 className={cn(
-                                    'flex items-center gap-3 p-4',
+                                    'p-4 space-y-2',
                                     !p.is_active && 'opacity-50'
                                 )}
                             >
-                                <div className="h-14 w-14 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                                    {p.image_url ? (
-                                        <img src={p.image_url} alt="" className="h-full w-full object-cover" />
-                                    ) : (
-                                        <div className="h-full w-full flex items-center justify-center text-gray-400">
-                                            <Package size={20} />
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5 mb-0.5">
-                                        <span className="px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 text-[10px] font-bold font-mono">{p.internal_code}</span>
-                                        <p className="font-semibold text-gray-800 text-sm truncate">
+                                {/* Row 1: image + name + actions */}
+                                <div className="flex items-start gap-3">
+                                    <div className="h-16 w-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                                        {p.image_url ? (
+                                            <img src={p.image_url} alt="" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center text-gray-400">
+                                                <Package size={22} />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-semibold text-gray-900 text-sm leading-snug">
                                             {p.name}
                                         </p>
+                                        <span className="text-[10px] font-bold font-mono text-brand-700 bg-brand-50 px-1.5 py-0.5 rounded mt-0.5 inline-block">
+                                            #{p.internal_code}
+                                        </span>
                                     </div>
-                                    <div className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
-                                        <span>{p.category}</span>
-                                        <span>·</span>
-                                        {p.is_packaged ? (
-                                            <span className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded uppercase font-bold tracking-widest">Embalado</span>
-                                        ) : (
-                                            <span className="text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded uppercase font-bold tracking-widest">In Natura</span>
-                                        )}
-                                        <span>·</span>
-                                        <span>Estoque: {p.stock_qty}</span>
+                                    {/* Action buttons */}
+                                    <div className="flex flex-col gap-1 flex-shrink-0">
+                                        <button
+                                            onClick={() => openEdit(p)}
+                                            className="p-2 rounded-lg bg-gray-100 text-gray-500 hover:bg-brand-50 hover:text-brand-600 transition cursor-pointer"
+                                            title="Editar"
+                                        >
+                                            <Pencil size={15} />
+                                        </button>
+                                        <button
+                                            onClick={() => toggleCatalog(p)}
+                                            className="p-2 rounded-lg bg-gray-100 cursor-pointer"
+                                            title={p.show_in_catalog ? 'Visível no catálogo' : 'Oculto do catálogo'}
+                                        >
+                                            {p.show_in_catalog ? (
+                                                <Eye size={15} className="text-brand-600" />
+                                            ) : (
+                                                <EyeOff size={15} className="text-gray-400" />
+                                            )}
+                                        </button>
                                     </div>
-                                    <p className="text-sm font-bold text-brand-600">
-                                        {formatCurrency(p.price)}
-                                    </p>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={() => toggleCatalog(p)}
-                                        className="p-2 cursor-pointer"
-                                    >
-                                        {p.show_in_catalog ? (
-                                            <Eye size={16} className="text-brand-600" />
-                                        ) : (
-                                            <EyeOff size={16} className="text-gray-400" />
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => openEdit(p)}
-                                        className="p-2 text-gray-400 cursor-pointer"
-                                    >
-                                        <Pencil size={16} />
-                                    </button>
+
+                                {/* Row 2: category + type + stock */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[10px] font-semibold text-brand-700 bg-brand-50 px-2 py-0.5 rounded-full">
+                                        {p.category}
+                                    </span>
+                                    {p.is_packaged ? (
+                                        <span className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Embalado</span>
+                                    ) : (
+                                        <span className="text-[9px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">In Natura</span>
+                                    )}
+                                    <span className="text-[10px] text-gray-500 ml-auto">
+                                        Estoque: <strong className="text-gray-700">{p.stock_qty}</strong>
+                                    </span>
                                 </div>
+
+                                {/* Row 3: price */}
+                                <p className="text-base font-bold text-brand-600">
+                                    {formatCurrency(p.price)}
+                                </p>
                             </div>
                         ))}
                     </div>
