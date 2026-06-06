@@ -183,11 +183,12 @@ export default function Finance() {
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-gray-500 uppercase bg-gray-50/50 border-b border-gray-100">
                             <tr>
-                                <th className="px-6 py-4 font-semibold">Data</th>
+                                <th className="px-6 py-4 font-semibold">Lançamento</th>
                                 <th className="px-6 py-4 font-semibold">Tipo</th>
                                 <th className="px-6 py-4 font-semibold">Categoria</th>
                                 <th className="px-6 py-4 font-semibold">Descrição</th>
                                 <th className="px-6 py-4 font-semibold">Valor</th>
+                                <th className="px-6 py-4 font-semibold">Vencimento</th>
                                 <th className="px-6 py-4 font-semibold text-center">Status</th>
                                 <th className="px-6 py-4 font-semibold text-center">Ações</th>
                             </tr>
@@ -209,7 +210,7 @@ export default function Finance() {
                                 filteredTransactions.map((t) => (
                                     <tr key={t.id} className="hover:bg-gray-50/50 transition-colors group">
                                         <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-                                            {format(parseISO(t.date), 'dd/MM/yyyy')}
+                                            {format(parseISO(t.type === 'expense' ? (t.original as Expense).created_at : t.date), 'dd/MM/yyyy')}
                                         </td>
                                         <td className="px-6 py-4">
                                             {t.type === 'revenue' ? (
