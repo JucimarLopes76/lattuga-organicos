@@ -110,7 +110,7 @@ export interface OnlineCheckoutData {
 // ============================================================
 
 export type TransactionType = 'revenue' | 'expense';
-export type ExpenseStatus = 'paid' | 'pending';
+export type ExpenseStatus = 'paid' | 'pending' | 'cancelled';
 
 export interface Expense {
     id: string;
@@ -124,6 +124,7 @@ export interface Expense {
     proof_url: string | null;
     status: ExpenseStatus;
     purchase_batch_id?: string | null;
+    order_id?: string | null;
     created_at: string;
 }
 

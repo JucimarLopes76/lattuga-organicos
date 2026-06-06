@@ -19,6 +19,7 @@ interface FinanceState {
     addExpenses: (expenses: Omit<Expense, 'id' | 'created_at'>[]) => Promise<void>;
     deleteExpense: (id: string) => Promise<void>;
     updateExpense: (id: string, updates: Partial<Expense>) => Promise<void>;
+    cancelExpensesByOrderId: (orderId: string) => Promise<void>;
 }
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
@@ -143,6 +144,19 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         } catch (error: any) {
             set({ error: error.message, isLoading: false });
             throw error;
+        }
+    },
+
+    cancelExpensesByOrderId: async (orderId) => {
+        try {
+            await supabase
+                .from('expenses')
+                .update({ status: 'cancelled' })
+                .eq('order_id', orderId)
+                .neq('status', 'cancelled');
+            await get().fetchTransactions();
+        } catch (error: any) {
+            console.error('Error cancelling expenses for order:', error);
         }
     },
 

@@ -214,13 +214,14 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
                     await useFinanceStore.getState().addExpense({
                         description: `Frete a Pagar - Pedido #${orderId.slice(0, 8)}`,
                         amount: orderData.surcharge_amount,
-                        category: 'Operacional', // Adjust category if needed
-                        due_date: new Date().toISOString(),
+                        category: 'Operacional',
+                        due_date: new Date().toISOString().split('T')[0],
                         status: 'pending',
-                        payment_method: 'pix',
+                        payment_method: null,
                         supplier: null,
                         payment_date: null,
-                        proof_url: null
+                        proof_url: null,
+                        order_id: orderId,
                     });
                 } catch (freightErr) {
                     console.error('Failed to auto-generate freight expense:', freightErr);
@@ -290,6 +291,13 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
 
         // Restore stock for items since they were deducted at order creation
         await incrementStock(order.items);
+
+        // Cancel any expenses linked to this order (e.g. freight)
+        try {
+            await useFinanceStore.getState().cancelExpensesByOrderId(orderId);
+        } catch (_) {
+            // Non-blocking
+        }
 
         if (order.status === 'completed' || order.status === 'accepted') {
             // Refresh finance data if the store has been loaded, since cancelling these
