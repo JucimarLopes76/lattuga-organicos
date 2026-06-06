@@ -170,6 +170,19 @@ export function POSCheckoutModal({ isOpen, onClose, onComplete }: Props) {
     };
 
     // ---- CEP lookup ----
+    // Auto-apply freight whenever bairro, cidade or deliveryMethod changes
+    useEffect(() => {
+        if (deliveryMethod !== 'delivery' || !address.bairro || !address.cidade) return;
+        const matchedZone = zones.find(
+            z => z.active &&
+            z.neighborhood.toLowerCase() === address.bairro.toLowerCase() &&
+            z.city.toLowerCase() === address.cidade.toLowerCase()
+        );
+        if (matchedZone) {
+            setSurcharge(matchedZone.fee);
+        }
+    }, [address.bairro, address.cidade, deliveryMethod, zones]);
+
     const handleCepLookup = async () => {
         const cep = address.cep.replace(/\D/g, '');
         if (cep.length !== 8) {
