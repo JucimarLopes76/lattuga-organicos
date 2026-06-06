@@ -105,48 +105,49 @@ export function CashRegisterCloseModal({ isOpen, onClose, onSuccess }: Props) {
         diff: number,
         isCash: boolean = false
     ) => (
-        <div className="flex items-center gap-2 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors px-2 rounded-lg">
-            {/* Icon + Label */}
-            <div className="flex items-center gap-2 w-[30%] min-w-0">
-                <div className={`h-8 w-8 flex-shrink-0 rounded-full flex items-center justify-center ${isCash ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                    {icon}
+        <div className={`rounded-xl border p-4 space-y-3 ${Math.abs(diff) > 0.01 ? 'border-amber-200 bg-amber-50/40' : 'border-gray-100 bg-white'}`}>
+            {/* Header: icon + label + diff badge */}
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <div className={`h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 ${isCash ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                        {icon}
+                    </div>
+                    <div>
+                        <p className="font-semibold text-gray-900 text-sm">{label}</p>
+                        {sublabel && <p className="text-[10px] text-gray-500">{sublabel}</p>}
+                    </div>
                 </div>
-                <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 text-xs truncate">{label}</p>
-                    {sublabel && <p className="text-[10px] text-gray-500 truncate">{sublabel}</p>}
-                </div>
-            </div>
-
-            {/* Expected */}
-            <div className="w-[28%] text-right">
-                <span className="text-xs font-medium text-gray-600 block">{formatCurrency(expected)}</span>
-                <span className="text-[9px] text-gray-400 uppercase tracking-wider">Esperado</span>
-            </div>
-
-            {/* Counted Input */}
-            <div className="w-[26%]">
-                <input
-                    type="number"
-                    step="0.01"
-                    className={`w-full text-right text-sm font-bold bg-white border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 transition-all ${Math.abs(diff) > 0.01
-                            ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500/20 text-amber-900'
-                            : 'border-gray-200 focus:border-brand-500 focus:ring-brand-500/20 text-gray-900'
-                        }`}
-                    value={value}
-                    onChange={(e) => onChange(e.target.value)}
-                    placeholder="0,00"
-                />
-            </div>
-
-            {/* Difference */}
-            <div className="w-[16%] text-right">
                 {Math.abs(diff) > 0.01 ? (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full block text-center ${diff < 0 ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'}`}>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${diff < 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
                         {diff > 0 ? '+' : ''}{formatCurrency(diff)}
                     </span>
                 ) : (
-                    <span className="text-xs font-medium text-gray-300 block text-center">OK</span>
+                    <span className="flex items-center gap-1 text-xs font-semibold text-green-600">
+                        <CheckCircle size={14} /> OK
+                    </span>
                 )}
+            </div>
+
+            {/* Sistema + Físico side by side */}
+            <div className="grid grid-cols-2 gap-3">
+                <div className="bg-gray-50 rounded-lg px-3 py-2">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Sistema</p>
+                    <p className="text-base font-bold text-gray-700">{formatCurrency(expected)}</p>
+                </div>
+                <div>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-0.5">Físico</p>
+                    <input
+                        type="number"
+                        step="0.01"
+                        className={`w-full text-base font-bold bg-white border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all ${Math.abs(diff) > 0.01
+                                ? 'border-amber-300 focus:border-amber-500 focus:ring-amber-500/20 text-amber-900'
+                                : 'border-gray-200 focus:border-brand-500 focus:ring-brand-500/20 text-gray-900'
+                            }`}
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        placeholder="0,00"
+                    />
+                </div>
             </div>
         </div>
     );
@@ -183,14 +184,8 @@ export function CashRegisterCloseModal({ isOpen, onClose, onSuccess }: Props) {
                         )}
                     </div>
 
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                        <div className="bg-gray-50 px-4 py-2 flex text-[10px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
-                            <div className="w-[30%]">Forma</div>
-                            <div className="w-[28%] text-right">Sistema</div>
-                            <div className="w-[26%] text-right">Físico</div>
-                            <div className="w-[16%] text-right">Dif.</div>
-                        </div>
-                        <div className="px-2">
+                    <div className="space-y-3">
+                        <div className="">
                             {renderRow(
                                 <Banknote size={20} />,
                                 "Dinheiro",
