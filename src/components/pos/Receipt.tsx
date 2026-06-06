@@ -26,6 +26,7 @@ const paymentLabels: Record<PaymentMethod, string> = {
     debit: 'Débito',
     credit: 'Crédito',
     cash: 'Dinheiro',
+    pay_later: 'Pagará Depois',
 };
 
 export function Receipt({ data }: { data: ReceiptData }) {

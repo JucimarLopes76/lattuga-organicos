@@ -36,6 +36,7 @@ export interface SalesSummary {
     byCredit: number;
     cancelledOrders: number;
     cancelledAmount: number;
+    byPayLater: number;
 }
 
 interface CashRegisterState {
@@ -210,6 +211,7 @@ export const useCashRegisterStore = create<CashRegisterState>((set, get) => ({
             byCredit: 0,
             cancelledOrders: 0,
             cancelledAmount: 0,
+            byPayLater: 0,
         };
         if (!session) return empty;
 
@@ -233,6 +235,7 @@ export const useCashRegisterStore = create<CashRegisterState>((set, get) => ({
             let byCredit = 0;
             let cancelledOrders = 0;
             let cancelledAmount = 0;
+            let byPayLater = 0;
 
             for (const order of orders) {
                 const amount = Number(order.total_amount) || 0;
@@ -268,6 +271,9 @@ export const useCashRegisterStore = create<CashRegisterState>((set, get) => ({
                     case 'credit':
                         byCredit += amount;
                         break;
+                    case 'pay_later':
+                        byPayLater += amount;
+                        break;
                 }
             }
 
@@ -283,6 +289,7 @@ export const useCashRegisterStore = create<CashRegisterState>((set, get) => ({
                 byCredit,
                 cancelledOrders,
                 cancelledAmount,
+                byPayLater,
             };
         } catch (err) {
             console.error('Error getting sales summary:', err);

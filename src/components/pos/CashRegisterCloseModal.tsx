@@ -236,6 +236,18 @@ export function CashRegisterCloseModal({ isOpen, onClose, onSuccess }: Props) {
                     </div>
                 </div>
 
+                {summary.byPayLater > 0 && (
+                    <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 mb-4">
+                        <div>
+                            <p className="text-sm font-semibold text-amber-700">A Receber (Pagará Depois)</p>
+                            <p className="text-xs text-amber-500">Não contabilizado no caixa</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-sm font-bold text-amber-700">{formatCurrency(summary.byPayLater)}</p>
+                        </div>
+                    </div>
+                )}
+
                 {summary.cancelledOrders > 0 && (
                     <div className="flex items-center justify-between bg-red-50 border border-red-100 rounded-xl px-4 py-3 mb-4">
                         <div>

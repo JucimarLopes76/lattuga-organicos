@@ -21,6 +21,7 @@ const paymentOptions = [
     { value: 'debit', label: 'Débito' },
     { value: 'credit', label: 'Crédito' },
     { value: 'cash', label: 'Dinheiro' },
+    { value: 'pay_later', label: 'Pagará Depois' },
 ];
 
 type Step = 'customer' | 'delivery' | 'payment';
