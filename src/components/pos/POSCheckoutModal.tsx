@@ -3,6 +3,7 @@ import { Search, UserPlus, UserCheck, SkipForward, MapPin, Truck, Store } from '
 import { useCartStore } from '@/stores/cartStore';
 import { useOrdersStore } from '@/stores/ordersStore';
 import { useCustomersStore } from '@/stores/customersStore';
+import { useDeliveryZonesStore } from '@/stores/deliveryZonesStore';
 import { formatCurrency } from '@/lib/utils';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -63,6 +64,7 @@ export function POSCheckoutModal({ isOpen, onClose, onComplete }: Props) {
     const cart = useCartStore();
     const addOrder = useOrdersStore((s) => s.addOrder);
     const { customers, fetchCustomers, createCustomer, updateCustomer } = useCustomersStore();
+    const { zones, fetchZones } = useDeliveryZonesStore();
 
     // Steps
     const [step, setStep] = useState<Step>('customer');
@@ -93,6 +95,7 @@ export function POSCheckoutModal({ isOpen, onClose, onComplete }: Props) {
     useEffect(() => {
         if (isOpen) {
             fetchCustomers();
+            fetchZones();
             setStep('customer');
             setPhoneSearch('');
             setSelectedCustomer(null);
