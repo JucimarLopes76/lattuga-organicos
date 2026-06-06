@@ -52,7 +52,7 @@ export default function Products() {
     const [formDescription, setFormDescription] = useState('');
     const [formPrice, setFormPrice] = useState('');
     const [formCostPrice, setFormCostPrice] = useState('');
-    const [formCategory, setFormCategory] = useState('Verduras');
+    const [formCategory, setFormCategory] = useState('VERDURAS');
     const [formStock, setFormStock] = useState('0');
     const [formImageUrl, setFormImageUrl] = useState('');
     const [formShowCatalog, setFormShowCatalog] = useState(true);
@@ -93,7 +93,7 @@ export default function Products() {
         setFormDescription('');
         setFormPrice('');
         setFormCostPrice('');
-        setFormCategory('Verduras');
+        setFormCategory('VERDURAS');
         setFormStock('0');
         setFormImageUrl('');
         setFormShowCatalog(true);
@@ -113,7 +113,7 @@ export default function Products() {
         setFormDescription(p.description || '');
         setFormPrice(p.price.toString());
         setFormCostPrice(p.cost_price?.toString() || '0');
-        setFormCategory(p.category);
+        setFormCategory((p.category || '').toUpperCase());
         setFormStock(p.stock_qty.toString());
         setFormImageUrl(p.image_url || '');
         setFormShowCatalog(p.show_in_catalog);
@@ -641,7 +641,7 @@ export default function Products() {
                             <Input
                                 label="Categoria"
                                 value={formCategory}
-                                onChange={(e) => setFormCategory(e.target.value)}
+                                onChange={(e) => setFormCategory(e.target.value.toUpperCase())}
                                 list="categories-list"
                                 placeholder="Selecione ou digite uma nova..."
                             />
