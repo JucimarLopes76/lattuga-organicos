@@ -56,14 +56,18 @@ export default function POS() {
         setShowCheckout(true);
     };
 
-    // FLV categories always appear first in the pills (case-insensitive match)
+    // FLV categories always appear first in the pills
     const sortedCategories = useMemo(() => {
-        const FLV_KEYS = ['FRUTAS', 'LEGUMES', 'VERDURAS'];
-        const flvFound = FLV_KEYS
-            .map(k => categories.find(c => c.toUpperCase() === k))
-            .filter((c): c is string => !!c);
-        const rest = categories.filter(c => c !== 'Todas' && !FLV_KEYS.includes(c.toUpperCase()));
-        return ['Todas', ...flvFound, ...rest];
+        const FLV = ['FRUTAS', 'LEGUMES', 'VERDURAS'];
+        const result: string[] = ['Todas'];
+        FLV.forEach(key => {
+            const found = categories.find(c => c.toUpperCase() === key);
+            if (found) result.push(found);
+        });
+        categories.forEach(c => {
+            if (c !== 'Todas' && !FLV.includes(c.toUpperCase())) result.push(c);
+        });
+        return result;
     }, [categories]);
 
     const filteredProducts = useMemo(() => {
