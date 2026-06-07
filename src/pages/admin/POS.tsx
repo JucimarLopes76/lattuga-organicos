@@ -171,7 +171,7 @@ export default function POS() {
                 </div>
 
                 {/* Product Grid */}
-                <div className="flex-1 overflow-y-auto p-4 pb-24 lg:pb-4">
+                <div className="flex-1 overflow-y-auto p-4 pb-24 lg:pb-4" style={{ overscrollBehavior: 'none' }}>
                     {isLoading && products.length === 0 ? (
                         <div className="flex items-center justify-center py-20">
                             <Spinner />
