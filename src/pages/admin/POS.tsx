@@ -56,11 +56,12 @@ export default function POS() {
         setShowCheckout(true);
     };
 
-    // FLV categories always appear first in the pills
-    const FLV_PRIORITY = ['Todas', 'FRUTAS', 'LEGUMES', 'VERDURAS'];
+    // FLV categories always appear first in the pills (case-insensitive match)
+    const FLV_KEYS = ['FRUTAS', 'LEGUMES', 'VERDURAS'];
     const sortedCategories = [
-        ...FLV_PRIORITY.filter(c => categories.includes(c)),
-        ...categories.filter(c => !FLV_PRIORITY.includes(c))
+        ...(categories.includes('Todas') ? ['Todas'] : []),
+        ...FLV_KEYS.map(k => categories.find(c => c.toUpperCase() === k)).filter(Boolean) as string[],
+        ...categories.filter(c => c !== 'Todas' && !FLV_KEYS.includes(c.toUpperCase()))
     ];
 
     const filteredProducts = useMemo(() => {
