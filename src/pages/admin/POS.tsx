@@ -15,7 +15,12 @@ import { Lock, Unlock, AlertTriangle } from 'lucide-react';
 
 export default function POS() {
     const [search, setSearch] = useState('');
-    const [activeCategory, setActiveCategory] = useState('Todas');
+    const [activeCategory, setActiveCategory] = useState(() => localStorage.getItem('pos_last_category') || 'Todas');
+
+    const handleCategoryChange = (cat: string) => {
+        setActiveCategory(cat);
+        localStorage.setItem('pos_last_category', cat);
+    };
     const [showCheckout, setShowCheckout] = useState(false);
     const [showCart, setShowCart] = useState(false);
     const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
@@ -151,7 +156,7 @@ export default function POS() {
                         {categories.map((cat) => (
                             <button
                                 key={cat}
-                                onClick={() => setActiveCategory(cat)}
+                                onClick={() => handleCategoryChange(cat)}
                                 className={cn(
                                     'px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all cursor-pointer',
                                     activeCategory === cat
@@ -166,7 +171,7 @@ export default function POS() {
                 </div>
 
                 {/* Product Grid */}
-                <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex-1 overflow-y-auto p-4 pb-24 lg:pb-4">
                     {isLoading && products.length === 0 ? (
                         <div className="flex items-center justify-center py-20">
                             <Spinner />
@@ -241,6 +246,25 @@ export default function POS() {
                     )}
                 </div>
             </div>
+
+            {/* ===== Mobile Bottom Bar ===== */}
+            {itemCount > 0 && (
+                <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-white border-t border-gray-200 px-4 py-3 shadow-lg">
+                    <button
+                        onClick={handleStartCheckout}
+                        className="w-full flex items-center justify-between bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white rounded-2xl px-5 py-3.5 transition-all cursor-pointer"
+                    >
+                        <span className="flex items-center gap-2 text-sm font-semibold">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
+                                {itemCount}
+                            </span>
+                            {itemCount === 1 ? '1 item' : `${itemCount} itens`}
+                        </span>
+                        <span className="text-sm font-bold">Finalizar Venda</span>
+                        <span className="text-sm font-semibold">{formatCurrency(cart.getSubtotal())}</span>
+                    </button>
+                </div>
+            )}
 
             {/* ===== RIGHT: Cart Sidebar (Desktop) ===== */}
             <div className="hidden lg:flex w-96 flex-col bg-white border-l border-gray-100">
