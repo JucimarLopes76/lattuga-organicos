@@ -2,7 +2,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 
-import type { Order, OrderItem } from '@/types';
+import type { Order, OrderItem, OrderStatus } from '@/types';
 import { useProductsStore } from './productsStore';
 import { useFinanceStore } from './financeStore';
 import { sendOrderConfirmation } from '@/lib/evolutionApi';
