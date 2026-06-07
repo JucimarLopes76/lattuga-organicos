@@ -40,7 +40,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { formatCurrency, cn } from '@/lib/utils';
 import { useOrdersStore } from '@/stores/ordersStore';
 import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
-import type { Order } from '@/types';
+import type { Order, OrderStatus } from '@/types';
 
 export default function Orders() {
     const { orders, isLoading, fetchOrders, updateStatus, cancelOrder, updateOrderFields } = useOrdersStore();
@@ -66,7 +66,7 @@ export default function Orders() {
         try {
             await updateOrderFields(editingOrderId, {
                 payment_method: editPayment,
-                status: editStatus,
+                status: editStatus as OrderStatus,
                 notes: editNotes || undefined,
             });
             setEditingOrderId(null);
