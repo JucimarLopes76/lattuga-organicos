@@ -56,6 +56,13 @@ export default function POS() {
         setShowCheckout(true);
     };
 
+    // FLV categories always appear first in the pills
+    const FLV_PRIORITY = ['Todas', 'FRUTAS', 'LEGUMES', 'VERDURAS'];
+    const sortedCategories = [
+        ...FLV_PRIORITY.filter(c => categories.includes(c)),
+        ...categories.filter(c => !FLV_PRIORITY.includes(c))
+    ];
+
     const filteredProducts = useMemo(() => {
         return products.filter((p) => {
             const matchCategory =
@@ -153,7 +160,7 @@ export default function POS() {
 
                     {/* Category Pills */}
                     <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                        {categories.map((cat) => (
+                        {sortedCategories.map((cat) => (
                             <button
                                 key={cat}
                                 onClick={() => handleCategoryChange(cat)}
