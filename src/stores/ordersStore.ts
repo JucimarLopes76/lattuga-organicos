@@ -81,7 +81,7 @@ interface OrdersState {
 
     /** Cancel an order, restore stock, and update finance */
     cancelOrder: (orderId: string) => Promise<void>;
-    updateOrderFields: (orderId: string, fields: { payment_method?: string; status?: string; notes?: string }) => Promise<void>;
+    updateOrderFields: (orderId: string, fields: { payment_method?: string; status?: OrderStatus; notes?: string | null }) => Promise<void>;
 }
 
 export const useOrdersStore = create<OrdersState>((set, get) => ({
