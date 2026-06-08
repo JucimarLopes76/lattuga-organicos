@@ -260,6 +260,15 @@ export const useOrdersStore = create<OrdersState>((set, get) => ({
                 );
             }
         }
+
+        // Rejecting an order returns the reserved items to stock
+        if (status === 'rejected') {
+            const order = get().orders.find((o) => o.id === orderId);
+            if (order?.items) {
+                await incrementStock(order.items);
+            }
+        }
+
         if (error) {
             console.error('Error updating order status:', error);
             // Revert on error — refetch

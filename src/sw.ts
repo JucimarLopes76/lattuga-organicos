@@ -2,9 +2,14 @@
 declare let self: ServiceWorkerGlobalScope
 
 import { precacheAndRoute } from 'workbox-precaching'
+import { clientsClaim } from 'workbox-core'
 
 // Precache resources dictated by VitePWA build
 precacheAndRoute(self.__WB_MANIFEST || [])
+
+// Take control immediately on new deploy — no need to close app or clear cache
+self.skipWaiting()
+clientsClaim()
 
 // Listen to Push Notifications sent by our Edge Function
 self.addEventListener('push', (event) => {
